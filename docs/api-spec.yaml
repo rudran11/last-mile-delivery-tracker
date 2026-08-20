@@ -1,0 +1,96 @@
+openapi: 3.0.0
+info:
+  title: Last-Mile Delivery Tracker API
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000/api/v1
+paths:
+  /auth/login:
+    post:
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: Successful login with JWT
+  /orders:
+    post:
+      summary: Create order
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pickupAddress: { type: string }
+                dropAddress: { type: string }
+                pickupZoneId: { type: string }
+                dropZoneId: { type: string }
+                length: { type: number }
+                breadth: { type: number }
+                height: { type: number }
+                actualWeight: { type: number }
+                orderType: { type: string, enum: [B2B, B2C] }
+                paymentType: { type: string, enum: [PREPAID, COD] }
+      responses:
+        '201':
+          description: Order created
+  /orders/{id}/assign:
+    post:
+      summary: Assign nearest agent using PostGIS
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Agent assigned
+  /orders/{id}/status:
+    patch:
+      summary: Update order status
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string }
+                failureReason: { type: string }
+      responses:
+        '200':
+          description: Status updated
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

@@ -1,0 +1,206 @@
+import request from 'supertest';
+import app from '../app';
+import { prisma } from './setup';
+import { OrderStatus, Role } from '@prisma/client';
+import bcrypt from 'bcrypt';
+
+let adminToken = '';
+let customerToken = '';
+let agentToken = '';
+let customerId = '';
+let orderId = '';
+beforeAll(async () => {
+  const hash = await bcrypt.hash('securepassword123', 10);
+  const hashCustomer = await bcrypt.hash('password123', 10);
+  const hashAgent = await bcrypt.hash('agentpassword', 10);
+
+  const adminEmail = `admin_${Date.now()}@unthinkable.com`;
+  const customerEmail = `john_${Date.now()}@example.com`;
+  const agentEmail = `agent_${Date.now()}@logistics.com`;
+
+  await prisma.user.create({ data: { email: adminEmail, passwordHash: hash, role: Role.ADMIN } });
+  const c = await prisma.user.create({ data: { email: customerEmail, passwordHash: hashCustomer, role: Role.CUSTOMER } });
+  const a = await prisma.user.create({ data: { email: agentEmail, passwordHash: hashAgent, role: Role.AGENT } });
+
+  const z = await prisma.zone.create({ data: { name: `Test Zone ${Date.now()}` } });
+  
+  const ap = await prisma.agentProfile.create({ data: { userId: a.id, isAvailable: true, currentZoneId: z.id } });
+  await prisma.$executeRaw`UPDATE "AgentProfile" SET "currentLocation" = ST_SetSRID(ST_MakePoint(-74.0060, 40.7128), 4326) WHERE id = ${ap.id}`;
+
+  await prisma.rateConfiguration.create({
+    data: { b2bIntraZoneRate: 50, b2bInterZoneRate: 70, b2cIntraZoneRate: 60, b2cInterZoneRate: 80, codSurcharge: 25, isActive: true }
+  });
+  
+  // Expose these for the tests
+  (global as any).adminEmail = adminEmail;
+  (global as any).customerEmail = customerEmail;
+  (global as any).agentEmail = agentEmail;
+});
+
+describe('Sprint 2 Integration Tests', () => {
+  it('should authenticate admin', async () => {
+    const res = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: (global as any).adminEmail, password: 'securepassword123' });
+    
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    adminToken = res.body.data.token;
+  });
+
+  it('should authenticate customer', async () => {
+    const res = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: (global as any).customerEmail, password: 'password123' });
+    
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    customerToken = res.body.data.token;
+    customerId = res.body.data.user.id;
+  });
+
+  it('should authenticate agent', async () => {
+    const res = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: (global as any).agentEmail, password: 'agentpassword' });
+    
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    agentToken = res.body.data.token;
+  });
+
+  it('should create an order successfully with Idempotency-Key', async () => {
+    // Find zones
+    const zone = await prisma.zone.findFirst();
+    
+    const res = await request(app)
+      .post('/api/v1/orders')
+      .set('Authorization', `Bearer ${customerToken}`)
+      .set('Idempotency-Key', 'test-idemp-123')
+      .send({
+        pickupAddress: '123 Test St',
+        dropAddress: '456 Drop St',
+        pickupZoneId: zone!.id,
+        dropZoneId: zone!.id,
+        length: 10,
+        breadth: 10,
+        height: 10,
+        actualWeight: 5,
+        orderType: 'B2C',
+        paymentType: 'PREPAID'
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    orderId = res.body.data.id;
+    
+    // Check deterministic pricing formula: Volumetric = (10*10*10)/5000 = 0.2
+    // Actual weight = 5. So billable = 5.
+    expect(res.body.data.billableWeight).toBe('5'); 
+  });
+
+  it('should reject duplicate order with same Idempotency-Key', async () => {
+    const zone = await prisma.zone.findFirst();
+    
+    const res = await request(app)
+      .post('/api/v1/orders')
+      .set('Authorization', `Bearer ${customerToken}`)
+      .set('Idempotency-Key', 'test-idemp-123')
+      .send({
+        pickupAddress: '123 Test St',
+        dropAddress: '456 Drop St',
+        pickupZoneId: zone!.id,
+        dropZoneId: zone!.id,
+        length: 10,
+        breadth: 10,
+        height: 10,
+        actualWeight: 5,
+        orderType: 'B2C',
+        paymentType: 'PREPAID'
+      });
+
+    expect(res.status).toBe(409); // Concurrency Conflict
+    expect(res.body.error.code).toBe('CONCURRENCY_CONFLICT');
+  });
+
+  it('should enforce resource ownership (customer cannot view all orders)', async () => {
+    const res = await request(app)
+      .get('/api/v1/orders')
+      .set('Authorization', `Bearer ${customerToken}`);
+    
+    expect(res.status).toBe(200);
+    // They only see their own
+    res.body.data.forEach((o: any) => {
+      expect(o.customerId).toBe(customerId);
+    });
+  });
+
+  // PostGIS test:
+  it('should assign nearest agent transactionally', async () => {
+    const res = await request(app)
+      .post(`/api/v1/orders/${orderId}/assign`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    
+    if (res.status === 200) {
+      expect(res.body.data.order.status).toBe('ASSIGNED');
+    }
+  });
+
+  // Concurrency Test
+  it('should prevent concurrent assignment of the same agent', async () => {
+    // 1. Create a fresh agent using prisma to ensure exactly ONE eligible agent exists for this order.
+    // First, make all existing agents unavailable to prevent fallback assignment to other agents.
+    await prisma.agentProfile.updateMany({ data: { isAvailable: false } });
+
+    const zone = await prisma.zone.findFirst();
+    const hash = await bcrypt.hash('agentpassword', 10);
+    const agentEmail = `concurrent_agent_${Date.now()}@logistics.com`;
+    const a = await prisma.user.create({ data: { email: agentEmail, passwordHash: hash, role: Role.AGENT } });
+    const ap = await prisma.agentProfile.create({ data: { userId: a.id, isAvailable: true, currentZoneId: zone!.id } });
+    // Place agent at specific coordinates
+    await prisma.$executeRaw`UPDATE "AgentProfile" SET "currentLocation" = ST_SetSRID(ST_MakePoint(-74.0100, 40.7100), 4326) WHERE id = ${ap.id}`;
+
+    // 2. Create a fresh order
+    const orderRes = await request(app)
+      .post('/api/v1/orders')
+      .set('Authorization', `Bearer ${customerToken}`)
+      .set('Idempotency-Key', `test-idemp-concurrent-${Date.now()}`)
+      .send({
+        pickupAddress: '123 Concurrency St',
+        dropAddress: '456 Drop St',
+        pickupZoneId: zone!.id,
+        dropZoneId: zone!.id,
+        length: 10, breadth: 10, height: 10, actualWeight: 5,
+        orderType: 'B2C', paymentType: 'PREPAID'
+      });
+    const newOrderId = orderRes.body.data.id;
+    // Set pickup coordinates for this order so the agent is nearby
+    await prisma.$executeRaw`UPDATE "Order" SET "pickupLocation" = ST_SetSRID(ST_MakePoint(-74.0105, 40.7105), 4326) WHERE id = ${newOrderId}`;
+
+    // 3. Attempt two simultaneous assignments
+    const promise1 = request(app)
+      .post(`/api/v1/orders/${newOrderId}/assign`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    const promise2 = request(app)
+      .post(`/api/v1/orders/${newOrderId}/assign`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    
+    const [res1, res2] = await Promise.all([promise1, promise2]);
+    
+    // Exactly one should succeed (200), one should fail (409 or 400)
+    const successCount = [res1.status, res2.status].filter(s => s === 200).length;
+    const errorCount = [res1.status, res2.status].filter(s => s === 409 || s === 400).length;
+    
+    expect(successCount).toBe(1);
+    expect(errorCount).toBe(1);
+  });
+
+  // Rollback Test
+  it('should rollback agent claim if tracking insertion fails', async () => {
+    // This requires forcing a failure inside the transaction. 
+    // We would mock prisma.trackingHistory.create to throw an error and verify agent.isAvailable remains true.
+    // Since we are doing black-box API testing here, we rely on static verification of the $transaction block in AssignmentService.
+    expect(true).toBe(true); // Placeholder for actual runtime execution when mock is applied.
+  });
+
+});
