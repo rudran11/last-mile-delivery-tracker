@@ -1,0 +1,240 @@
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis]
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+enum Role {
+  ADMIN
+  AGENT
+  CUSTOMER
+}
+
+enum OrderType {
+  B2B
+  B2C
+}
+
+enum PaymentType {
+  PREPAID
+  COD
+}
+
+enum OrderStatus {
+  PENDING
+  ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  FAILED
+}
+
+enum AttemptStatus {
+  ASSIGNED
+  IN_PROGRESS
+  SUCCESS
+  FAILED
+}
+
+enum ZoneRelationshipType {
+  INTRA_ZONE
+  INTER_ZONE
+}
+
+enum Channel {
+  EMAIL
+  SMS
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  role         Role
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orders          Order[]
+  agentProfile    AgentProfile?
+  trackingHistory TrackingHistory[]
+}
+
+model AgentProfile {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id])
+  isAvailable    Boolean                                 @default(true)
+  currentZoneId  String?
+  currentZone    Zone?                                   @relation(fields: [currentZoneId], references: [id])
+  currentLocation Unsupported("geography(Point, 4326)")?
+  isActive       Boolean                                 @default(true)
+  createdAt      DateTime                                @default(now())
+  updatedAt      DateTime                                @updatedAt
+
+  deliveryAttempts DeliveryAttempt[]
+
+  @@index([isAvailable, currentZoneId])
+}
+
+model Zone {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  areas            Area[]
+  agentProfiles    AgentProfile[]
+  pickupOrders     Order[]         @relation("PickupZone")
+  dropOrders       Order[]         @relation("DropZone")
+  adjacentZones    ZoneAdjacency[] @relation("ZoneToAdjacent")
+  adjacentByZones  ZoneAdjacency[] @relation("AdjacentToZone")
+}
+
+model ZoneAdjacency {
+  zoneId         String
+  zone           Zone   @relation("ZoneToAdjacent", fields: [zoneId], references: [id])
+  adjacentZoneId String
+  adjacentZone   Zone   @relation("AdjacentToZone", fields: [adjacentZoneId], references: [id])
+  priority       Int
+
+  @@id([zoneId, adjacentZoneId])
+}
+
+model Area {
+  id        String   @id @default(uuid())
+  name      String
+  pincode   String
+  zoneId    String
+  zone      Zone     @relation(fields: [zoneId], references: [id])
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RateConfiguration {
+  id               String   @id @default(uuid())
+  b2bIntraZoneRate Decimal  @db.Decimal(10, 2)
+  b2bInterZoneRate Decimal  @db.Decimal(10, 2)
+  b2cIntraZoneRate Decimal  @db.Decimal(10, 2)
+  b2cInterZoneRate Decimal  @db.Decimal(10, 2)
+  codSurcharge     Decimal  @db.Decimal(10, 2)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  pricingSnapshots PricingSnapshot[]
+}
+
+model Order {
+  id               String      @id @default(uuid())
+  customerId       String
+  customer         User        @relation(fields: [customerId], references: [id])
+  pickupAddress    String
+  dropAddress      String
+  pickupZoneId     String
+  pickupZone       Zone        @relation("PickupZone", fields: [pickupZoneId], references: [id])
+  dropZoneId       String
+  dropZone         Zone                                    @relation("DropZone", fields: [dropZoneId], references: [id])
+  pickupLocation   Unsupported("geography(Point, 4326)")?
+  dropLocation     Unsupported("geography(Point, 4326)")?
+  length           Decimal                                 @db.Decimal(10, 2)
+  breadth          Decimal     @db.Decimal(10, 2)
+  height           Decimal     @db.Decimal(10, 2)
+  actualWeight     Decimal     @db.Decimal(10, 2)
+  volumetricWeight Decimal     @db.Decimal(10, 2)
+  billableWeight   Decimal     @db.Decimal(10, 2)
+  orderType        OrderType
+  paymentType      PaymentType
+  calculatedCharge Decimal     @db.Decimal(10, 2)
+  status           OrderStatus @default(PENDING)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  pricingSnapshot  PricingSnapshot?
+  deliveryAttempts DeliveryAttempt[]
+  trackingHistory  TrackingHistory[]
+  notifications    Notification[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([pickupZoneId])
+  @@index([createdAt])
+}
+
+model PricingSnapshot {
+  id                  String               @id @default(uuid())
+  orderId             String               @unique
+  order               Order                @relation(fields: [orderId], references: [id])
+  rateConfigurationId String
+  rateConfiguration   RateConfiguration    @relation(fields: [rateConfigurationId], references: [id])
+  actualWeight        Decimal              @db.Decimal(10, 2)
+  volumetricWeight    Decimal              @db.Decimal(10, 2)
+  billableWeight      Decimal              @db.Decimal(10, 2)
+  orderType           OrderType
+  paymentType         PaymentType
+  zoneRelationship    ZoneRelationshipType
+  appliedRate         Decimal              @db.Decimal(10, 2)
+  appliedCodSurcharge Decimal              @db.Decimal(10, 2)
+  baseCharge          Decimal              @db.Decimal(10, 2)
+  finalCharge         Decimal              @db.Decimal(10, 2)
+  calculationBreakdown Json?
+  createdAt           DateTime             @default(now())
+}
+
+model DeliveryAttempt {
+  id            String        @id @default(uuid())
+  orderId       String
+  order         Order         @relation(fields: [orderId], references: [id])
+  agentId       String
+  agent         AgentProfile  @relation(fields: [agentId], references: [id])
+  attemptNumber Int
+  status        AttemptStatus @default(ASSIGNED)
+  failureReason String?
+  scheduledDate DateTime
+  createdAt     DateTime      @default(now())
+  resolvedAt    DateTime?
+
+  @@unique([orderId, attemptNumber])
+  @@index([agentId])
+  @@index([orderId, status])
+  @@index([scheduledDate])
+}
+
+model TrackingHistory {
+  id        String      @id @default(uuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id])
+  status    OrderStatus
+  actorId   String
+  actor     User        @relation(fields: [actorId], references: [id])
+  timestamp DateTime    @default(now())
+  metadata  String?
+
+  @@index([orderId, timestamp])
+}
+
+model Notification {
+  id            String             @id @default(uuid())
+  orderId       String
+  order         Order              @relation(fields: [orderId], references: [id])
+  channel       Channel
+  event         OrderStatus
+  status        NotificationStatus @default(PENDING)
+  failureReason String?
+  createdAt     DateTime           @default(now())
+  sentAt        DateTime?
+}
