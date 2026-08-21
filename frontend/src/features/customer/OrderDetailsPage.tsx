@@ -109,6 +109,12 @@ const OrderDetailsPage = () => {
                     <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)' }}>Weight</p>
                     <p style={{ fontWeight: 500 }}>{order.actualWeight} kg (Billable: {order.billableWeight} kg)</p>
                   </div>
+                  {order.agentId && (
+                    <div style={{ marginTop: 'var(--space-2)', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--color-border)' }}>
+                      <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)' }}>Assigned Agent ID</p>
+                      <p style={{ fontWeight: 500, color: 'var(--color-primary)' }}>{order.agentId}</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

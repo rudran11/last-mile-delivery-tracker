@@ -35,8 +35,8 @@ const LandingPage = () => {
             The premium enterprise platform for end-to-end shipment visibility, intelligent nearest-agent assignment, and real-time lifecycle management.
           </p>
           <div className={styles.ctaGroup}>
-            <Button size="lg" onClick={() => navigate('/login')}>
-              Enter Control Tower
+            <Button size="lg" onClick={() => navigate('/login')} className={styles.primaryCta}>
+              Sign in to Dashboard
             </Button>
           </div>
         </section>

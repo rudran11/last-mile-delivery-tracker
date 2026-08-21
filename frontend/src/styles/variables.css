@@ -1,27 +1,29 @@
 :root {
-  /* Colors */
-  --color-bg: #F8FAFC;
-  --color-surface: #FFFFFF;
-  --color-text-primary: #0B1220;
-  --color-text-secondary: #64748B;
-  --color-border: #E2E8F0;
+  /* Premium Enterprise Logistics Colors */
+  --color-bg: #0f172a; /* Deep Indigo Background */
+  --color-surface: #1e293b; /* Indigo Surface */
+  --color-surface-glass: rgba(30, 41, 59, 0.7); /* Glassmorphism surface */
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #94a3b8;
+  --color-border: #334155;
+  --color-border-light: rgba(255, 255, 255, 0.1);
   
-  --color-primary: #2563EB;
-  --color-primary-hover: #1D4ED8;
-  --color-primary-light: #DBEAFE;
+  --color-primary: #4f46e5; /* Indigo brand */
+  --color-primary-hover: #4338ca;
+  --color-primary-light: rgba(79, 70, 229, 0.15);
   
-  --color-accent: #06B6D4;
+  --color-accent: #38bdf8;
   
-  --color-success: #16A34A;
-  --color-success-bg: #DCFCE7;
+  --color-success: #10b981; /* Emerald */
+  --color-success-bg: rgba(16, 185, 129, 0.15);
   
-  --color-warning: #D97706;
-  --color-warning-bg: #FEF3C7;
+  --color-warning: #f59e0b; /* Amber/Vibrant warning */
+  --color-warning-bg: rgba(245, 158, 11, 0.15);
   
-  --color-error: #DC2626;
-  --color-error-bg: #FEE2E2;
+  --color-error: #ef4444; /* Rose/Vibrant error */
+  --color-error-bg: rgba(239, 68, 68, 0.15);
 
-  --color-overlay: rgba(11, 18, 32, 0.4);
+  --color-overlay: rgba(15, 23, 42, 0.75);
 
   /* Spacing */
   --space-1: 0.25rem;

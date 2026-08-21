@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
-import { LayoutDashboard, Package, PlusCircle, IndianRupee, ArrowRight } from 'lucide-react';
+import { LayoutDashboard, Package, PlusCircle, IndianRupee, ArrowRight, MapPin } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../../components/ui/Card';
+import { Badge } from '../../components/ui/Badge';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { api } from '../../services/ApiClient';
@@ -14,6 +15,71 @@ const navItems = [
   { label: 'Create Order', href: '/customer/orders/create', icon: <PlusCircle size={20} /> },
 ];
 
+const LocationSearch = ({ label, onSelect, placeholder, error }: any) => {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selected, setSelected] = useState(false);
+  const [selectedData, setSelectedData] = useState<{lat: number, lng: number} | null>(null);
+
+  const handleSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!query) return;
+    setIsSearching(true);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`, {
+        headers: { 'Accept-Language': 'en-US,en;q=0.9' }
+      });
+      const data = await res.json();
+      setResults(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const selectLocation = (r: any) => {
+    setQuery(r.display_name);
+    setSelected(true);
+    setSelectedData({ lat: parseFloat(r.lat), lng: parseFloat(r.lon) });
+    setResults([]);
+    const postcode = r.address?.postcode || '';
+    onSelect(r.display_name, parseFloat(r.lat), parseFloat(r.lon), postcode);
+  };
+
+  return (
+    <div style={{ position: 'relative', marginBottom: '1rem' }}>
+      <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', color: 'var(--color-text-secondary)' }}>{label}</label>
+      <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <input 
+          value={query} 
+          onChange={e => { setQuery(e.target.value); setSelected(false); setSelectedData(null); onSelect('', 0, 0); }} 
+          onKeyDown={e => { if (e.key === 'Enter') handleSearch(e); }}
+          placeholder={placeholder}
+          style={{ flex: 1, padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${error ? 'var(--color-error)' : 'var(--color-border)'}`, backgroundColor: 'var(--color-surface)', color: 'var(--color-text-primary)' }}
+        />
+        <Button onClick={handleSearch} isLoading={isSearching} disabled={selected || !query} type="button" variant="outline">Search</Button>
+      </div>
+      {results.length > 0 && !selected && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', maxHeight: '200px', overflowY: 'auto', boxShadow: 'var(--shadow-md)', marginTop: '4px' }}>
+          {results.map((r, i) => (
+            <div key={i} onClick={() => selectLocation(r)} style={{ padding: '0.75rem', borderBottom: '1px solid var(--color-border)', cursor: 'pointer', fontSize: '0.875rem', color: 'var(--color-text-primary)' }}>
+              {r.display_name}
+            </div>
+          ))}
+        </div>
+      )}
+      {selectedData && (
+        <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+          <MapPin size={12} />
+          Location fixed: Lat {selectedData.lat.toFixed(4)}, Lng {selectedData.lng.toFixed(4)}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const CreateOrderPage = () => {
   const navigate = useNavigate();
   const [zones, setZones] = useState<any[]>([]);
@@ -23,9 +89,13 @@ const CreateOrderPage = () => {
   
   const [formData, setFormData] = useState({
     pickupAddress: '',
+    pickupLat: 0,
+    pickupLng: 0,
+    pickupPincode: '',
     dropAddress: '',
-    pickupZoneId: '',
-    dropZoneId: '',
+    dropLat: 0,
+    dropLng: 0,
+    dropPincode: '',
     length: '',
     breadth: '',
     height: '',
@@ -34,21 +104,22 @@ const CreateOrderPage = () => {
     paymentType: 'PREPAID'
   });
 
-  useEffect(() => {
-    const fetchZones = async () => {
-      try {
-        const response = await api.get<any[]>('/zones');
-        setZones(response);
-      } catch (err) {
-        console.error('Failed to fetch zones', err);
-      }
-    };
-    fetchZones();
-  }, []);
+  const [successOrder, setSuccessOrder] = useState<any | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    setQuote(null); // Clear quote if data changes
+    setQuote(null);
+  };
+
+  const handleLocationSelect = (type: 'pickup' | 'drop') => (address: string, lat: number, lng: number, pincode: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [`${type}Address`]: address,
+      [`${type}Lat`]: lat,
+      [`${type}Lng`]: lng,
+      [`${type}Pincode`]: pincode || '',
+    }));
+    setQuote(null);
   };
 
   const handleGetQuote = async () => {
@@ -86,13 +157,13 @@ const CreateOrderPage = () => {
         actualWeight: parseFloat(formData.actualWeight),
       };
       
-      const response = await api.post<{ id: string }>('/orders', payload, {
+      const response = await api.post<any>('/orders', payload, {
         headers: {
           'Idempotency-Key': crypto.randomUUID()
         }
       });
       
-      navigate(`/customer/orders/${response.id}`);
+      setSuccessOrder(response);
     } catch (err: any) {
       console.error('Failed to create order', err);
       alert(err.message || 'Failed to create order.');
@@ -101,8 +172,61 @@ const CreateOrderPage = () => {
     }
   };
 
+  if (successOrder) {
+    return (
+      <DashboardLayout navItems={navItems}>
+        <div className={styles.container} style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'center', paddingTop: '4rem' }}>
+          <div style={{ display: 'inline-flex', padding: '1rem', borderRadius: '50%', backgroundColor: 'var(--color-success-bg)', color: 'var(--color-success)', marginBottom: '1.5rem' }}>
+            <Package size={48} />
+          </div>
+          <h1 style={{ fontSize: 'var(--text-3xl)', fontWeight: 700, marginBottom: '0.5rem' }}>Order Confirmed!</h1>
+          <p style={{ color: 'var(--color-text-secondary)', marginBottom: '2rem' }}>Your shipment has been successfully created.</p>
+          
+          <Card style={{ textAlign: 'left', marginBottom: '2rem' }}>
+            <CardContent style={{ paddingTop: '1.5rem' }}>
+              <div style={{ display: 'grid', gap: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>Order ID</span>
+                  <strong style={{ fontFamily: 'monospace' }}>{successOrder.id.split('-')[0]}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>Status</span>
+                  <Badge variant="warning">{successOrder.status}</Badge>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>Total Price</span>
+                  <strong>₹{successOrder.calculatedCharge}</strong>
+                </div>
+                <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '0.5rem 0' }} />
+                <div>
+                  <span style={{ display: 'block', color: 'var(--color-text-secondary)', marginBottom: '0.25rem' }}>Assignment State</span>
+                  {successOrder.autoAssigned ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-success)', fontWeight: 500 }}>
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--color-success)' }}></div>
+                      Assigned to {successOrder.assignmentDetails?.agentEmail || 'nearest available agent'}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-warning)', fontWeight: 500 }}>
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--color-warning)' }}></div>
+                      Assignment pending
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+            <Button variant="outline" onClick={() => setSuccessOrder(null)}>Create Another</Button>
+            <Button onClick={() => navigate(`/customer/orders/${successOrder.id}`)}>Track Order</Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   const isFormComplete = formData.pickupAddress && formData.dropAddress && 
-                         formData.pickupZoneId && formData.dropZoneId && 
+                         formData.pickupLat !== 0 && formData.dropLat !== 0 &&
                          formData.length && formData.breadth && 
                          formData.height && formData.actualWeight;
 
@@ -111,7 +235,7 @@ const CreateOrderPage = () => {
       <div className={styles.container}>
         <header className={styles.header}>
           <h1 className={styles.title}>Create New Order</h1>
-          <p className={styles.subtitle}>Enter shipment details for an instant quote.</p>
+          <p className={styles.subtitle}>Enter shipment details and locations for an instant quote.</p>
         </header>
 
         <div className={styles.layout}>
@@ -122,39 +246,30 @@ const CreateOrderPage = () => {
                   <CardTitle>Locations</CardTitle>
                 </CardHeader>
                 <CardContent className={styles.formGrid}>
-                  <div className={styles.formGroup}>
-                    <label>Pickup Zone</label>
-                    <select name="pickupZoneId" value={formData.pickupZoneId} onChange={handleChange} className={styles.select}>
-                      <option value="">Select Zone</option>
-                      {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
-                    </select>
+                  <div style={{ marginBottom: '2rem' }}>
+                    <div style={{ padding: '0.75rem', backgroundColor: 'var(--color-surface-hover)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', fontSize: '0.875rem', color: 'var(--color-text-secondary)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--color-primary)' }}>ℹ️</span>
+                      Our logistics network now supports automatic serviceability for all valid locations across India.
+                    </div>
                   </div>
                   
-                  <div className={styles.formGroup}>
-                    <label>Drop Zone</label>
-                    <select name="dropZoneId" value={formData.dropZoneId} onChange={handleChange} className={styles.select}>
-                      <option value="">Select Zone</option>
-                      {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
-                    </select>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <LocationSearch 
+                      label="Pickup Location" 
+                      placeholder="Search for pickup address (e.g. Connaught Place, Delhi)"
+                      onSelect={handleLocationSelect('pickup')}
+                      error={!formData.pickupAddress}
+                    />
                   </div>
-                  
-                  <Input 
-                    label="Pickup Address" 
-                    name="pickupAddress" 
-                    value={formData.pickupAddress} 
-                    onChange={handleChange} 
-                    placeholder="Full pickup address"
-                    className={styles.fullWidth}
-                  />
-                  
-                  <Input 
-                    label="Drop Address" 
-                    name="dropAddress" 
-                    value={formData.dropAddress} 
-                    onChange={handleChange} 
-                    placeholder="Full delivery address"
-                    className={styles.fullWidth}
-                  />
+
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <LocationSearch 
+                      label="Drop Location" 
+                      placeholder="Search for delivery address (e.g. Andheri, Mumbai)"
+                      onSelect={handleLocationSelect('drop')}
+                      error={!formData.dropAddress}
+                    />
+                  </div>
                 </CardContent>
               </Card>
 
@@ -215,10 +330,23 @@ const CreateOrderPage = () => {
                 {!quote ? (
                   <div className={styles.emptyQuote}>
                     <IndianRupee size={32} className={styles.emptyIcon} />
-                    <p>Fill in shipment details to calculate price.</p>
+                    <p>Fill in shipment details and complete location search to calculate price.</p>
                   </div>
                 ) : (
                   <div className={styles.quoteDetails}>
+                    <div style={{ marginBottom: '1rem', padding: '0.75rem', backgroundColor: 'var(--color-surface-hover)', borderRadius: 'var(--radius-sm)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+                        <span style={{ color: 'var(--color-text-secondary)' }}>Pickup</span>
+                        <strong style={{ textAlign: 'right' }}>{quote.pickupArea?.name} ({quote.pickupArea?.pincode})<br/><span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{quote.pickupZone?.name}</span></strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                        <span style={{ color: 'var(--color-text-secondary)' }}>Drop</span>
+                        <strong style={{ textAlign: 'right' }}>{quote.dropArea?.name} ({quote.dropArea?.pincode})<br/><span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{quote.dropZone?.name}</span></strong>
+                      </div>
+                      <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--color-border)', textAlign: 'center', fontSize: '0.75rem', fontWeight: 600, color: quote.zoneRelationship === 'INTRA_ZONE' ? 'var(--color-success)' : 'var(--color-warning)' }}>
+                        {quote.zoneRelationship.replace('_', ' ')}
+                      </div>
+                    </div>
                     <div className={styles.quoteRow}>
                       <span>Billable Weight</span>
                       <strong>{quote.billableWeight} kg</strong>

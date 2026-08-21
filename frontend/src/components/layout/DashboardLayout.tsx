@@ -60,7 +60,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ navItems, chil
 
         <nav className={styles.nav}>
           {navItems.map((item) => {
-            const isActive = location.pathname === item.href || location.pathname.startsWith(`${item.href}/`);
+            const activeNavItem = [...navItems].sort((a, b) => b.href.length - a.href.length).find(nav => 
+              location.pathname === nav.href || location.pathname.startsWith(`${nav.href}/`)
+            );
+            const isActive = activeNavItem?.href === item.href;
+
             return (
               <button
                 key={item.href}

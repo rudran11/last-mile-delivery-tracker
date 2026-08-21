@@ -17,38 +17,53 @@ async function main() {
   const agent1 = await prisma.user.create({ data: { email: 'agent1@unthinkable.co', passwordHash: agentHash, role: Role.AGENT } })
   const agent2 = await prisma.user.create({ data: { email: 'agent2@test.com', passwordHash: agentHash, role: Role.AGENT } })
   const agent3 = await prisma.user.create({ data: { email: 'agent3@test.com', passwordHash: agentHash, role: Role.AGENT } })
+  const agent4 = await prisma.user.create({ data: { email: 'agent4@test.com', passwordHash: agentHash, role: Role.AGENT } })
 
   // 2. Zones & Areas
   const northZone = await prisma.zone.create({ data: { name: 'North Zone' } })
+  const westZone = await prisma.zone.create({ data: { name: 'West Zone' } })
   const southZone = await prisma.zone.create({ data: { name: 'South Zone' } })
+  const eastZone = await prisma.zone.create({ data: { name: 'East Zone' } })
+  
   await prisma.area.createMany({
     data: [
-      { name: 'North Area 1', pincode: '100001', zoneId: northZone.id },
-      { name: 'South Area 1', pincode: '200001', zoneId: southZone.id },
+      { name: 'Delhi NCR', pincode: '110001', zoneId: northZone.id },
+      { name: 'Okhla', pincode: '110020', zoneId: northZone.id },
+      { name: 'Mumbai Metro', pincode: '400001', zoneId: westZone.id },
+      { name: 'Bandra', pincode: '400050', zoneId: westZone.id },
+      { name: 'Chennai Central', pincode: '600001', zoneId: southZone.id },
+      { name: 'T Nagar', pincode: '600017', zoneId: southZone.id },
+      { name: 'Kolkata Metro', pincode: '700001', zoneId: eastZone.id },
+      { name: 'Salt Lake', pincode: '700091', zoneId: eastZone.id },
     ]
   })
+  
   await prisma.zoneAdjacency.createMany({
     data: [
-      { zoneId: northZone.id, adjacentZoneId: southZone.id, priority: 1 },
-      { zoneId: southZone.id, adjacentZoneId: northZone.id, priority: 1 },
+      { zoneId: northZone.id, adjacentZoneId: westZone.id, priority: 1 },
+      { zoneId: westZone.id, adjacentZoneId: southZone.id, priority: 1 },
+      { zoneId: eastZone.id, adjacentZoneId: northZone.id, priority: 1 },
     ]
   })
 
   // Agent Profiles
-  const agentProfile1 = await prisma.agentProfile.create({ data: { userId: agent1.id, isAvailable: true, currentZoneId: northZone.id } })
-  const agentProfile2 = await prisma.agentProfile.create({ data: { userId: agent2.id, isAvailable: true, currentZoneId: southZone.id } })
-  const agentProfile3 = await prisma.agentProfile.create({ data: { userId: agent3.id, isAvailable: false, currentZoneId: northZone.id } })
+  const agentProfile1 = await prisma.agentProfile.create({ data: { userId: agent1.id, isAvailable: true, currentZoneId: northZone.id } }) // Delhi
+  const agentProfile2 = await prisma.agentProfile.create({ data: { userId: agent2.id, isAvailable: true, currentZoneId: southZone.id } }) // Chennai
+  const agentProfile3 = await prisma.agentProfile.create({ data: { userId: agent3.id, isAvailable: false, currentZoneId: westZone.id } }) // Mumbai - Unavailable
+  const agentProfile4 = await prisma.agentProfile.create({ data: { userId: agent4.id, isAvailable: true, currentZoneId: eastZone.id } }) // Kolkata
 
   // UPDATE AGENT COORDINATES via Raw SQL
   try {
-    // Agent 1 is in North Zone (say, lat: 40.7128, lon: -74.0060)
-    await prisma.$executeRaw`UPDATE "AgentProfile" SET "currentLocation" = ST_SetSRID(ST_MakePoint(-74.0060, 40.7128), 4326) WHERE id = ${agentProfile1.id}`
-    // Agent 2 is in South Zone (say, lat: 40.7000, lon: -74.0100)
-    await prisma.$executeRaw`UPDATE "AgentProfile" SET "currentLocation" = ST_SetSRID(ST_MakePoint(-74.0100, 40.7000), 4326) WHERE id = ${agentProfile2.id}`
-    // Agent 3 is in North Zone but unavailable (lat: 40.7130, lon: -74.0065)
-    await prisma.$executeRaw`UPDATE "AgentProfile" SET "currentLocation" = ST_SetSRID(ST_MakePoint(-74.0065, 40.7130), 4326) WHERE id = ${agentProfile3.id}`
+    // Agent 1 = Delhi Connaught Place (Lat: 28.6328, Lng: 77.2167)
+    await prisma.$executeRaw`UPDATE "AgentProfile" SET "currentLocation" = ST_SetSRID(ST_MakePoint(77.2167, 28.6328), 4326) WHERE id = ${agentProfile1.id}`
+    // Agent 2 = Chennai T Nagar (Lat: 13.0400, Lng: 80.2300)
+    await prisma.$executeRaw`UPDATE "AgentProfile" SET "currentLocation" = ST_SetSRID(ST_MakePoint(80.2300, 13.0400), 4326) WHERE id = ${agentProfile2.id}`
+    // Agent 3 = Mumbai Fort (Lat: 18.9322, Lng: 72.8339) but unavailable
+    await prisma.$executeRaw`UPDATE "AgentProfile" SET "currentLocation" = ST_SetSRID(ST_MakePoint(72.8339, 18.9322), 4326) WHERE id = ${agentProfile3.id}`
+    // Agent 4 = Kolkata (Lat: 22.5726, Lng: 88.3639)
+    await prisma.$executeRaw`UPDATE "AgentProfile" SET "currentLocation" = ST_SetSRID(ST_MakePoint(88.3639, 22.5726), 4326) WHERE id = ${agentProfile4.id}`
   } catch(e) {
-    throw new Error("PostGIS is required for this project. Ensure the database is running with the PostGIS extension enabled.");
+    throw new Error("PostGIS is required for this project.");
   }
 
   // 3. Rate Configuration
@@ -59,7 +74,7 @@ async function main() {
   // 4. Orders
   const order1 = await prisma.order.create({
     data: {
-      customerId: customer1.id, pickupAddress: 'Pickup 1', dropAddress: 'Drop 1',
+      customerId: customer1.id, pickupAddress: 'Connaught Place, New Delhi', dropAddress: 'Bandra, Mumbai',
       pickupZoneId: northZone.id, dropZoneId: northZone.id,
       length: 10, breadth: 10, height: 10, actualWeight: 5, volumetricWeight: 0.2, billableWeight: 5,
       orderType: OrderType.B2B, paymentType: PaymentType.PREPAID, calculatedCharge: 250, status: OrderStatus.DELIVERED,
@@ -67,9 +82,9 @@ async function main() {
   })
   
   try {
-    await prisma.$executeRaw`UPDATE "Order" SET "pickupLocation" = ST_SetSRID(ST_MakePoint(-74.0050, 40.7120), 4326), "dropLocation" = ST_SetSRID(ST_MakePoint(-74.0080, 40.7150), 4326) WHERE id = ${order1.id}`
+    await prisma.$executeRaw`UPDATE "Order" SET "pickupLocation" = ST_SetSRID(ST_MakePoint(77.2167, 28.6328), 4326), "dropLocation" = ST_SetSRID(ST_MakePoint(72.8400, 19.0596), 4326) WHERE id = ${order1.id}`
   } catch(e) {
-    throw new Error("PostGIS is required for this project. Ensure the database is running with the PostGIS extension enabled.");
+    throw new Error("PostGIS is required.");
   }
 
   await prisma.pricingSnapshot.create({
@@ -87,7 +102,7 @@ async function main() {
 
   const order2 = await prisma.order.create({
     data: {
-      customerId: customer2.id, pickupAddress: 'Pickup 2', dropAddress: 'Drop 2',
+      customerId: customer2.id, pickupAddress: 'T Nagar, Chennai', dropAddress: 'Andheri, Mumbai',
       pickupZoneId: southZone.id, dropZoneId: northZone.id,
       length: 20, breadth: 20, height: 20, actualWeight: 10, volumetricWeight: 1.6, billableWeight: 10,
       orderType: OrderType.B2C, paymentType: PaymentType.COD, calculatedCharge: 825, status: OrderStatus.FAILED,
@@ -95,9 +110,9 @@ async function main() {
   })
   
   try {
-    await prisma.$executeRaw`UPDATE "Order" SET "pickupLocation" = ST_SetSRID(ST_MakePoint(-74.0150, 40.6900), 4326), "dropLocation" = ST_SetSRID(ST_MakePoint(-74.0040, 40.7110), 4326) WHERE id = ${order2.id}`
+    await prisma.$executeRaw`UPDATE "Order" SET "pickupLocation" = ST_SetSRID(ST_MakePoint(80.2300, 13.0400), 4326), "dropLocation" = ST_SetSRID(ST_MakePoint(72.8300, 19.1100), 4326) WHERE id = ${order2.id}`
   } catch(e) {
-    throw new Error("PostGIS is required for this project. Ensure the database is running with the PostGIS extension enabled.");
+    throw new Error("PostGIS is required.");
   }
 
   await prisma.pricingSnapshot.create({

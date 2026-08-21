@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
-import { Map, Layers, ClipboardList, Target, User } from 'lucide-react';
+import { Map, Layers, ClipboardList, Target, User, X } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { api } from '../../services/ApiClient';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table';
@@ -20,6 +20,12 @@ const DispatchPanelPage = () => {
   const [agents, setAgents] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [assigningId, setAssigningId] = useState<string | null>(null);
+  
+  const [reassignModal, setReassignModal] = useState<{ isOpen: boolean; orderId: string | null; selectedAgentId: string | null }>({
+    isOpen: false,
+    orderId: null,
+    selectedAgentId: null,
+  });
 
   useEffect(() => {
     fetchData();
@@ -44,7 +50,7 @@ const DispatchPanelPage = () => {
   const pendingOrders = orders.filter(o => o.status === 'PENDING');
   const availableAgents = agents.filter(a => a.isAvailable);
 
-  const handleAssign = async (orderId: string) => {
+  const handleAssignNearest = async (orderId: string) => {
     setAssigningId(orderId);
     try {
       await api.post(`/orders/${orderId}/assign`, {});
@@ -58,6 +64,23 @@ const DispatchPanelPage = () => {
     }
   };
 
+  const handleManualReassign = async () => {
+    if (!reassignModal.orderId || !reassignModal.selectedAgentId) return;
+    
+    setAssigningId(reassignModal.orderId);
+    try {
+      await api.post(`/orders/${reassignModal.orderId}/reassign`, { agentId: reassignModal.selectedAgentId });
+      alert('Order successfully reassigned.');
+      setReassignModal({ isOpen: false, orderId: null, selectedAgentId: null });
+      await fetchData();
+    } catch (err: any) {
+      console.error('Reassignment failed', err);
+      alert(err.message || 'Reassignment failed.');
+    } finally {
+      setAssigningId(null);
+    }
+  };
+
   return (
     <DashboardLayout navItems={navItems}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -66,7 +89,7 @@ const DispatchPanelPage = () => {
             Dispatch Panel
           </h1>
           <p style={{ color: 'var(--color-text-secondary)' }}>
-            PostGIS Nearest-Agent Routing Engine
+            PostGIS Nearest-Agent Routing Engine & Manual Dispatch
           </p>
         </header>
 
@@ -104,10 +127,10 @@ const DispatchPanelPage = () => {
                  <Skeleton style={{ height: '40px', marginBottom: '10px' }} />
                  <Skeleton style={{ height: '40px' }} />
                </div>
-            ) : pendingOrders.length === 0 ? (
+            ) : orders.filter(o => ['PENDING', 'ASSIGNED', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(o.status)).length === 0 ? (
               <EmptyState 
-                title="No pending orders" 
-                description="All active orders have been assigned to agents."
+                title="No active orders" 
+                description="There are no active orders requiring dispatch."
                 icon={<Target size={32} />}
                 style={{ border: 'none' }}
               />
@@ -118,12 +141,14 @@ const DispatchPanelPage = () => {
                     <TableHead>Order ID</TableHead>
                     <TableHead>Pickup</TableHead>
                     <TableHead>Drop-off</TableHead>
-                    <TableHead>Zone</TableHead>
+                    <TableHead>Assignment State</TableHead>
                     <TableHead>Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pendingOrders.map(order => (
+                  {orders
+                    .filter(o => ['PENDING', 'ASSIGNED', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(o.status))
+                    .map(order => (
                     <TableRow key={order.id}>
                       <TableCell style={{ fontFamily: 'monospace', fontSize: '12px' }}>{order.id.split('-')[0]}</TableCell>
                       <TableCell>
@@ -136,17 +161,41 @@ const DispatchPanelPage = () => {
                           {order.dropAddress}
                         </div>
                       </TableCell>
-                      <TableCell>{order.pickupZoneId.substring(0, 8)}</TableCell>
                       <TableCell>
-                        <Button 
-                          size="sm" 
-                          onClick={() => handleAssign(order.id)}
-                          isLoading={assigningId === order.id}
-                          disabled={assigningId !== null || availableAgents.length === 0}
-                        >
-                          <Target size={14} style={{ marginRight: '4px' }} />
-                          Assign Nearest
-                        </Button>
+                        {order.status === 'PENDING' ? (
+                          <Badge variant="warning">PENDING ASSIGNMENT</Badge>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <Badge variant="success">ASSIGNED</Badge>
+                            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                              Agent ID: {order.agentId?.substring(0, 8)}
+                            </span>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          {order.status === 'PENDING' && (
+                            <Button 
+                              size="sm" 
+                              onClick={() => handleAssignNearest(order.id)}
+                              isLoading={assigningId === order.id}
+                              disabled={assigningId !== null || availableAgents.length === 0}
+                            >
+                              <Target size={14} style={{ marginRight: '4px' }} />
+                              Nearest
+                            </Button>
+                          )}
+                          <Button 
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setReassignModal({ isOpen: true, orderId: order.id, selectedAgentId: null })}
+                            disabled={assigningId !== null || availableAgents.length === 0}
+                          >
+                            <User size={14} style={{ marginRight: '4px' }} />
+                            {order.status === 'PENDING' ? 'Manual Assign' : 'Reassign'}
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -199,6 +248,75 @@ const DispatchPanelPage = () => {
           </CardContent>
         </Card>
       </div>
+
+      {reassignModal.isOpen && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          backgroundColor: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{ 
+            backgroundColor: 'var(--color-surface)', width: '400px', borderRadius: 'var(--radius-lg)',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            overflow: 'hidden', border: '1px solid var(--color-border)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', borderBottom: '1px solid var(--color-border)' }}>
+              <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 600 }}>Manual Assignment</h3>
+              <button onClick={() => setReassignModal({ isOpen: false, orderId: null, selectedAgentId: null })} style={{ color: 'var(--color-text-secondary)' }}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={{ padding: '1.5rem' }}>
+              <p style={{ marginBottom: '1rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
+                Select an available agent for Order <strong style={{color: 'var(--color-text-primary)'}}>{reassignModal.orderId?.split('-')[0]}</strong>.
+              </p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '250px', overflowY: 'auto', marginBottom: '1.5rem' }}>
+                {availableAgents.map(agent => (
+                  <div 
+                    key={agent.id}
+                    onClick={() => setReassignModal(prev => ({ ...prev, selectedAgentId: agent.id }))}
+                    style={{
+                      padding: '0.75rem', borderRadius: '0.375rem', border: '1px solid',
+                      borderColor: reassignModal.selectedAgentId === agent.id ? 'var(--color-primary)' : 'var(--color-border)',
+                      backgroundColor: reassignModal.selectedAgentId === agent.id ? 'var(--color-primary-light)' : 'transparent',
+                      cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>{agent.name || `Agent ${agent.id.substring(0,8)}`}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                        {agent.location ? `Lat: ${agent.location.lat.toFixed(4)}, Lng: ${agent.location.lng.toFixed(4)}` : 'Location unknown'}
+                      </div>
+                    </div>
+                    {reassignModal.selectedAgentId === agent.id && (
+                      <div style={{ color: 'var(--color-primary)' }}><Target size={18} /></div>
+                    )}
+                  </div>
+                ))}
+                {availableAgents.length === 0 && (
+                  <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--color-error)', backgroundColor: 'var(--color-error-bg)', borderRadius: '0.375rem' }}>
+                    No agents are currently available.
+                  </div>
+                )}
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                <Button variant="ghost" onClick={() => setReassignModal({ isOpen: false, orderId: null, selectedAgentId: null })}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleManualReassign} 
+                  disabled={!reassignModal.selectedAgentId || assigningId !== null}
+                  isLoading={assigningId !== null}
+                >
+                  Confirm Assignment
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 };

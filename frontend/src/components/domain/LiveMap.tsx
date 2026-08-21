@@ -1,7 +1,17 @@
 import React from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+
+const BoundsFitter: React.FC<{ items: any[] }> = ({ items }) => {
+  const map = useMap();
+  React.useEffect(() => {
+    if (items.length === 0) return;
+    const bounds = L.latLngBounds(items.map(item => [item.location.lat, item.location.lng]));
+    map.fitBounds(bounds, { padding: [50, 50] });
+  }, [items, map]);
+  return null;
+};
 
 // Fix for default marker icons in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -41,6 +51,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ agents, orders }) => {
   return (
     <div style={{ height: '400px', width: '100%', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
       <MapContainer center={DEFAULT_CENTER} zoom={11} style={{ height: '100%', width: '100%' }}>
+        <BoundsFitter items={agents.filter(a => a.location)} />
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'

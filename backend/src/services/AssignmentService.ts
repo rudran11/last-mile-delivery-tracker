@@ -28,7 +28,7 @@ export class AssignmentService {
     >`
       SELECT 
         a.id,
-        ST_Distance(a."currentLocation", COALESCE(o."pickupLocation", ST_SetSRID(ST_MakePoint(-74.0060, 40.7128), 4326))) as distance
+        ST_Distance(a."currentLocation", o."pickupLocation") as distance
       FROM "AgentProfile" a
       CROSS JOIN "Order" o
       WHERE o.id = ${orderId} 
@@ -94,13 +94,112 @@ export class AssignmentService {
         }
       });
 
+      const agentProfile = await tx.agentProfile.findUnique({
+        where: { id: selectedAgentId },
+        include: { user: true }
+      });
+
       return {
         order: updatedOrder,
         deliveryAttempt,
         trackingHistory,
         assignmentDetails: {
           agentId: selectedAgentId,
+          agentEmail: agentProfile?.user.email,
           distance: calculatedDistance
+        }
+      };
+    });
+
+    return result;
+  }
+
+  static async manualReassign(orderId: string, targetAgentId: string, actorId: string) {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { deliveryAttempts: { orderBy: { attemptNumber: 'desc' }, take: 1 } }
+    });
+
+    if (!order) {
+      throw new NotFoundError('Order not found');
+    }
+
+    if (order.status !== OrderStatus.PENDING && order.status !== OrderStatus.ASSIGNED) {
+      throw new BadRequestError('Order cannot be reassigned in its current state');
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const targetAgent = await tx.agentProfile.findFirst({
+        where: { id: targetAgentId, isAvailable: true, isActive: true }
+      });
+
+      if (!targetAgent) {
+        throw new BadRequestError('Selected agent is not available or does not exist');
+      }
+
+      const currentAttempt = order.deliveryAttempts[0];
+      
+      if (order.status === OrderStatus.ASSIGNED && currentAttempt && currentAttempt.agentId === targetAgentId) {
+        throw new BadRequestError('Agent is already assigned to this order');
+      }
+
+      if (order.status === OrderStatus.ASSIGNED && currentAttempt && currentAttempt.status === AttemptStatus.ASSIGNED) {
+        await tx.agentProfile.update({
+          where: { id: currentAttempt.agentId },
+          data: { isAvailable: true }
+        });
+        
+        await tx.deliveryAttempt.update({
+          where: { id: currentAttempt.id },
+          data: { status: AttemptStatus.FAILED }
+        });
+      }
+
+      const updatedAgent = await tx.agentProfile.updateMany({
+        where: { id: targetAgentId, isAvailable: true },
+        data: { isAvailable: false }
+      });
+
+      if (updatedAgent.count === 0) {
+        throw new ConcurrencyError('Agent was claimed by another process. Please retry assignment.');
+      }
+
+      const attemptNumber = currentAttempt ? currentAttempt.attemptNumber + 1 : 1;
+
+      const deliveryAttempt = await tx.deliveryAttempt.create({
+        data: {
+          orderId,
+          agentId: targetAgentId,
+          attemptNumber,
+          status: AttemptStatus.ASSIGNED,
+          scheduledDate: new Date(),
+        }
+      });
+
+      const updatedOrder = await tx.order.update({
+        where: { id: orderId },
+        data: { status: OrderStatus.ASSIGNED }
+      });
+
+      const trackingHistory = await tx.trackingHistory.create({
+        data: {
+          orderId,
+          status: OrderStatus.ASSIGNED,
+          actorId,
+          metadata: JSON.stringify({
+            event: 'MANUAL_REASSIGNMENT',
+            agentId: targetAgentId,
+            attemptNumber
+          })
+        }
+      });
+
+      return {
+        order: updatedOrder,
+        deliveryAttempt,
+        trackingHistory,
+        assignmentDetails: {
+          agentId: targetAgentId
         }
       };
     });
