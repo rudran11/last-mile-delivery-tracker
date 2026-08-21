@@ -46,7 +46,7 @@ export class LifecycleService {
       }
     }
 
-    return await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       // 1. Update order status
       const updatedOrder = await tx.order.update({
         where: { id: orderId },
@@ -100,9 +100,17 @@ export class LifecycleService {
 
       return { order: updatedOrder, trackingHistory };
     });
+
+    import('./NotificationService').then(({ NotificationService }) => {
+      NotificationService.sendNotification(result.order.id, result.order.status).catch(err => {
+        console.error('Failed to dispatch notification', { error: err.message });
+      });
+    });
+
+    return result;
   }
 
-  static async rescheduleOrder(orderId: string, customerId: string) {
+  static async rescheduleOrder(orderId: string, customerId: string, scheduledDate?: Date) {
     const order = await prisma.order.findUnique({ where: { id: orderId } });
     
     if (!order) throw new NotFoundError('Order not found');
@@ -120,11 +128,11 @@ export class LifecycleService {
           orderId,
           status: OrderStatus.PENDING,
           actorId: customerId,
-          metadata: JSON.stringify({ event: 'RESCHEDULED' })
+          metadata: JSON.stringify({ event: 'RESCHEDULED', scheduledDate })
         }
       });
 
-      return { order: updatedOrder, trackingHistory };
+      return { order: updatedOrder, trackingHistory, scheduledDate };
     });
   }
 }

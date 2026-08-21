@@ -44,6 +44,37 @@ const OrderDetailsPage = () => {
     }
   };
 
+  const [isRescheduling, setIsRescheduling] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+
+  const handleReschedule = async () => {
+    if (!order) return;
+    if (!rescheduleDate) {
+      alert('Please select a future scheduled date');
+      return;
+    }
+    
+    const selectedDate = new Date(rescheduleDate);
+    if (selectedDate <= new Date()) {
+      alert('Please select a valid future date');
+      return;
+    }
+
+    const confirmed = window.confirm(`Are you sure you want to reschedule this order to ${format(selectedDate, 'PPpp')}?`);
+    if (!confirmed) return;
+
+    setIsRescheduling(true);
+    try {
+      await api.post(`/orders/${order.id}/reschedule`, { scheduledDate: selectedDate.toISOString() });
+      alert('Order rescheduled successfully!');
+      window.location.reload();
+    } catch (err: any) {
+      alert(err.message || 'Failed to reschedule order');
+    } finally {
+      setIsRescheduling(false);
+    }
+  };
+
   return (
     <DashboardLayout navItems={navItems}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -62,10 +93,25 @@ const OrderDetailsPage = () => {
               </p>
             </div>
             {order && (
-              <Button onClick={() => navigate(`/customer/orders/${id}/tracking`)}>
-                <Map size={16} style={{ marginRight: '8px' }} />
-                Live Tracking
-              </Button>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {order.status === 'FAILED' && (
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input 
+                      type="datetime-local" 
+                      value={rescheduleDate}
+                      onChange={(e) => setRescheduleDate(e.target.value)}
+                      style={{ padding: '6px 12px', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-secondary)' }}
+                    />
+                    <Button onClick={handleReschedule} disabled={isRescheduling}>
+                      {isRescheduling ? 'Submitting...' : 'Reschedule Order'}
+                    </Button>
+                  </div>
+                )}
+                <Button onClick={() => navigate(`/customer/orders/${id}/tracking`)}>
+                  <Map size={16} style={{ marginRight: '8px' }} />
+                  Live Tracking
+                </Button>
+              </div>
             )}
           </div>
         </header>

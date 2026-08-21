@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
 import { LayoutDashboard, Truck, CheckCircle2, Navigation } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { api } from '../../services/ApiClient';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table';
@@ -71,7 +71,14 @@ const AgentDashboard = () => {
               This is UI-only for the scope of Sprint 3 unless we add a backend patch. */}
           <Button 
             variant={isAvailable ? 'primary' : 'outline'}
-            onClick={() => setIsAvailable(!isAvailable)}
+            onClick={async () => {
+              try {
+                await api.put('/agents/status', { isAvailable: !isAvailable });
+                setIsAvailable(!isAvailable);
+              } catch (e) {
+                console.error("Failed to update status", e);
+              }
+            }}
           >
             {isAvailable ? 'Status: Available' : 'Status: Offline'}
           </Button>

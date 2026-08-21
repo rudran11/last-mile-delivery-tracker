@@ -85,27 +85,32 @@ export class OrderService {
       throw new BadRequestError('Location is outside the supported India service network.');
     }
 
-    if (!resolvedState) {
-      throw new BadRequestError('Could not determine the geographic state for this location within India.');
-    }
-
-    const zoneName = STATE_TO_ZONE_MAP[resolvedState];
-    if (!zoneName) {
-      throw new BadRequestError(`State '${resolvedState}' is not currently mapped to a service zone.`);
-    }
-
-    // Resolve the Zone from the DB
-    const zone = await prisma.zone.findUnique({ where: { name: zoneName } });
-    if (!zone || !zone.isActive) {
-      throw new BadRequestError(`The resolved zone (${zoneName}) is currently inactive or not configured.`);
-    }
-
-    // Optional Area resolution
+    // 1. Check if the Area exists directly by pincode (Admin configured precedence)
     let area = null;
+    let zone = null;
     if (resolvedPincode) {
       area = await prisma.area.findFirst({
-        where: { pincode: resolvedPincode, zoneId: zone.id, isActive: true }
+        where: { pincode: resolvedPincode, isActive: true },
+        include: { zone: true }
       });
+      if (area && area.zone.isActive) {
+        zone = area.zone;
+      }
+    }
+
+    // 2. Fallback to Geographic State mapping
+    if (!zone) {
+      if (!resolvedState) {
+        throw new BadRequestError('Could not determine the geographic state for this location within India.');
+      }
+      const zoneName = STATE_TO_ZONE_MAP[resolvedState];
+      if (!zoneName) {
+        throw new BadRequestError(`State '${resolvedState}' is not currently mapped to a service zone.`);
+      }
+      zone = await prisma.zone.findUnique({ where: { name: zoneName } });
+      if (!zone || !zone.isActive) {
+        throw new BadRequestError(`The resolved zone (${zoneName}) is currently inactive or not configured.`);
+      }
     }
 
     return {
@@ -226,7 +231,34 @@ export class OrderService {
       }
     }
 
+    import('./NotificationService').then(({ NotificationService }) => {
+      NotificationService.sendNotification(order.id, OrderStatus.PENDING).catch(err => {
+        logger.error('Failed to dispatch notification', { error: err.message });
+      });
+    });
+
     return { ...order, autoAssigned, assignmentDetails };
+  }
+
+  static async overrideStatus(orderId: string, status: OrderStatus, adminId: string) {
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new BadRequestError('Order not found');
+
+    const updatedOrder = await prisma.order.update({
+      where: { id: orderId },
+      data: { status }
+    });
+
+    await prisma.trackingHistory.create({
+      data: {
+        orderId,
+        status,
+        actorId: adminId,
+        metadata: JSON.stringify({ event: 'ADMIN_OVERRIDE', previousStatus: order.status })
+      }
+    });
+
+    return updatedOrder;
   }
 
   static async getQuote(data: CreateOrderInput) {

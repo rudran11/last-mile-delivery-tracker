@@ -12,7 +12,7 @@ export class OrderController {
       }
 
       const data = createOrderSchema.parse(req.body);
-      const customerId = req.user!.userId;
+      const customerId = (req.user as any).userId as string;
 
       const order = await OrderService.createOrder(customerId, data, idempotencyKey);
       
@@ -33,6 +33,29 @@ export class OrderController {
       res.status(200).json({
         success: true,
         data: quote,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async rescheduleOrder(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = req.params.id as string;
+      const customerId = (req.user as any).userId as string;
+      const { scheduledDate } = req.body;
+      const parsedDate = scheduledDate ? new Date(scheduledDate) : undefined;
+      
+      const { LifecycleService } = await import('../services/LifecycleService');
+      const result = await LifecycleService.rescheduleOrder(id, customerId, parsedDate);
+
+      // Trigger assignment since status is PENDING
+      const { AssignmentService } = await import('../services/AssignmentService');
+      AssignmentService.assignAgent(result.order.id, customerId, result.scheduledDate).catch(err => console.error('Reassignment failed', err));
+
+      res.status(200).json({
+        success: true,
+        data: result.order,
       });
     } catch (error) {
       next(error);

@@ -18,5 +18,6 @@ router.post('/:id/reschedule', requireAuth, requireRole([Role.CUSTOMER]), Lifecy
 router.get('/', requireAuth, OrderQueryController.listOrders);
 router.get('/:id', requireAuth, OrderQueryController.getOrderById);
 router.get('/:id/tracking', requireAuth, OrderQueryController.getTracking);
+router.post('/:id/reschedule', OrderController.rescheduleOrder);
 
 export default router;

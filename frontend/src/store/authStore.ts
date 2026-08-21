@@ -6,8 +6,8 @@ export type UserRole = 'CUSTOMER' | 'AGENT' | 'ADMIN';
 export interface User {
   id: string;
   email: string;
-  role: UserRole;
   name?: string;
+  role: UserRole;
 }
 
 interface AuthState {

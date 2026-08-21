@@ -84,7 +84,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ navItems, chil
               <User size={16} />
             </div>
             <div className={styles.userDetails}>
-              <span className={styles.userEmail}>{user?.email}</span>
+              <span className={styles.userEmail} style={{ fontWeight: 600 }}>{user?.name || user?.email}</span>
+              {user?.name && <span className={styles.userRole} style={{ fontSize: '0.7rem' }}>{user?.email}</span>}
               <span className={styles.userRole}>{user?.role}</span>
             </div>
           </div>

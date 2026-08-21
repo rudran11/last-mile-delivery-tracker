@@ -39,3 +39,9 @@ export class ConcurrencyError extends DomainError {
     super(message, 409, code);
   }
 }
+
+export class ConflictError extends DomainError {
+  constructor(message: string = 'Conflict', code: string = 'CONFLICT') {
+    super(message, 409, code);
+  }
+}

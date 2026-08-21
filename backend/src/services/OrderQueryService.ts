@@ -1,16 +1,41 @@
-import { PrismaClient, Role } from '@prisma/client';
+import { PrismaClient, Role, OrderStatus, Prisma } from '@prisma/client';
 import { NotFoundError, ForbiddenError } from '../errors/DomainError';
 
 const prisma = new PrismaClient();
 
+export interface OrderFilters {
+  status?: string;
+  zoneId?: string;
+  agentId?: string;
+}
+
 export class OrderQueryService {
-  static async listOrders(userId: string, role: Role) {
+  static async listOrders(userId: string, role: Role, filters?: OrderFilters) {
     if (role === Role.ADMIN) {
-      return await prisma.order.findMany({ include: { pricingSnapshot: true, trackingHistory: true, deliveryAttempts: true } });
+      const whereClause: Prisma.OrderWhereInput = {};
+      if (filters?.status) whereClause.status = filters.status as OrderStatus;
+      if (filters?.zoneId) {
+        whereClause.OR = [
+          { pickupZoneId: filters.zoneId },
+          { dropZoneId: filters.zoneId }
+        ];
+      }
+      if (filters?.agentId) {
+        whereClause.deliveryAttempts = {
+          some: { agentId: filters.agentId }
+        };
+      }
+
+      return await prisma.order.findMany({
+        where: whereClause,
+        include: { pricingSnapshot: true, trackingHistory: true, deliveryAttempts: true },
+        orderBy: { createdAt: 'desc' }
+      });
     } else if (role === Role.CUSTOMER) {
       return await prisma.order.findMany({
         where: { customerId: userId },
-        include: { pricingSnapshot: true, trackingHistory: true, deliveryAttempts: true }
+        include: { pricingSnapshot: true, trackingHistory: true, deliveryAttempts: true },
+        orderBy: { createdAt: 'desc' }
       });
     } else if (role === Role.AGENT) {
       const agentProfile = await prisma.agentProfile.findUnique({ where: { userId } });

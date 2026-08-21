@@ -1,5 +1,7 @@
-import { OrderType, PaymentType, RateConfiguration, ZoneRelationshipType } from '@prisma/client';
+import { PrismaClient, OrderType, PaymentType, RateConfiguration, ZoneRelationshipType } from '@prisma/client';
 import { BadRequestError } from '../errors/DomainError';
+
+const prisma = new PrismaClient();
 
 export interface PricingInput {
   length: number;
@@ -12,6 +14,43 @@ export interface PricingInput {
 }
 
 export class PricingService {
+  static async getRateConfigurations() {
+    return await prisma.rateConfiguration.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  static async createRateConfiguration(data: {
+    b2bIntraZoneRate: number;
+    b2bInterZoneRate: number;
+    b2cIntraZoneRate: number;
+    b2cInterZoneRate: number;
+    b2bCodSurcharge: number;
+    b2cCodSurcharge: number;
+    isActive: boolean;
+  }) {
+    // If activating this one, we could optionally deactivate others, 
+    // but the requirement says "View current active rate configuration, Create/update rate configuration".
+    // We will just let them create a new one. The OrderService picks the most recent active one.
+    return await prisma.rateConfiguration.create({
+      data: {
+        b2bIntraZoneRate: data.b2bIntraZoneRate,
+        b2bInterZoneRate: data.b2bInterZoneRate,
+        b2cIntraZoneRate: data.b2cIntraZoneRate,
+        b2cInterZoneRate: data.b2cInterZoneRate,
+        b2bCodSurcharge: data.b2bCodSurcharge,
+        b2cCodSurcharge: data.b2cCodSurcharge,
+        isActive: data.isActive
+      }
+    });
+  }
+
+  static async updateRateConfiguration(id: string, isActive: boolean) {
+    return await prisma.rateConfiguration.update({
+      where: { id },
+      data: { isActive }
+    });
+  }
   static calculate(input: PricingInput, rateConfig: RateConfiguration) {
     if (input.length <= 0 || input.breadth <= 0 || input.height <= 0 || input.actualWeight <= 0) {
       throw new BadRequestError('Dimensions and weight must be strictly positive');
@@ -37,7 +76,12 @@ export class PricingService {
 
     // Exact decimal values multiplied without arbitrary rounding blocks
     const baseCharge = billableWeight * appliedRate;
-    const appliedCodSurcharge = input.paymentType === PaymentType.COD ? rateConfig.codSurcharge.toNumber() : 0;
+    let appliedCodSurcharge = 0;
+    if (input.paymentType === PaymentType.COD) {
+      appliedCodSurcharge = input.orderType === OrderType.B2B 
+        ? rateConfig.b2bCodSurcharge.toNumber() 
+        : rateConfig.b2cCodSurcharge.toNumber();
+    }
     const finalCharge = baseCharge + appliedCodSurcharge;
 
     const calculationBreakdown = {

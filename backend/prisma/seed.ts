@@ -9,15 +9,15 @@ async function main() {
   const agentHash = await bcrypt.hash('agent123', 10);
 
   // 1. Users
-  const admin = await prisma.user.create({ data: { email: 'admin@unthinkable.co', passwordHash: adminHash, role: Role.ADMIN } })
-  const customer1 = await prisma.user.create({ data: { email: 'customer@unthinkable.co', passwordHash: customerHash, role: Role.CUSTOMER } })
-  const customer2 = await prisma.user.create({ data: { email: 'customer2@test.com', passwordHash: customerHash, role: Role.CUSTOMER } })
+  const admin = await prisma.user.create({ data: { email: 'admin@unthinkable.co', name: 'System Admin', passwordHash: adminHash, role: Role.ADMIN } })
+  const customer1 = await prisma.user.create({ data: { email: 'customer@unthinkable.co', name: 'John Doe', passwordHash: customerHash, role: Role.CUSTOMER } })
+  const customer2 = await prisma.user.create({ data: { email: 'customer2@test.com', name: 'Jane Smith', passwordHash: customerHash, role: Role.CUSTOMER } })
 
   // Agents
-  const agent1 = await prisma.user.create({ data: { email: 'agent1@unthinkable.co', passwordHash: agentHash, role: Role.AGENT } })
-  const agent2 = await prisma.user.create({ data: { email: 'agent2@test.com', passwordHash: agentHash, role: Role.AGENT } })
-  const agent3 = await prisma.user.create({ data: { email: 'agent3@test.com', passwordHash: agentHash, role: Role.AGENT } })
-  const agent4 = await prisma.user.create({ data: { email: 'agent4@test.com', passwordHash: agentHash, role: Role.AGENT } })
+  const agent1 = await prisma.user.create({ data: { email: 'agent1@unthinkable.co', name: 'Agent One', passwordHash: agentHash, role: Role.AGENT } })
+  const agent2 = await prisma.user.create({ data: { email: 'agent2@test.com', name: 'Agent Two', passwordHash: agentHash, role: Role.AGENT } })
+  const agent3 = await prisma.user.create({ data: { email: 'agent3@test.com', name: 'Agent Three', passwordHash: agentHash, role: Role.AGENT } })
+  const agent4 = await prisma.user.create({ data: { email: 'agent4@test.com', name: 'Agent Four', passwordHash: agentHash, role: Role.AGENT } })
 
   // 2. Zones & Areas
   const northZone = await prisma.zone.create({ data: { name: 'North Zone' } })
@@ -68,7 +68,7 @@ async function main() {
 
   // 3. Rate Configuration
   const rateConfig = await prisma.rateConfiguration.create({
-    data: { b2bIntraZoneRate: 50, b2bInterZoneRate: 70, b2cIntraZoneRate: 60, b2cInterZoneRate: 80, codSurcharge: 25, isActive: true }
+    data: { b2bIntraZoneRate: 50, b2bInterZoneRate: 70, b2cIntraZoneRate: 60, b2cInterZoneRate: 80, b2bCodSurcharge: 25, b2cCodSurcharge: 30, isActive: true }
   })
 
   // 4. Orders

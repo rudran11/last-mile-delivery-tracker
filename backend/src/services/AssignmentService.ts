@@ -4,7 +4,7 @@ import { BadRequestError, ConcurrencyError, NotFoundError } from '../errors/Doma
 const prisma = new PrismaClient();
 
 export class AssignmentService {
-  static async assignAgent(orderId: string, actorId: string) {
+  static async assignAgent(orderId: string, actorId: string, scheduledDate?: Date) {
     // 1. Fetch Order and confirm it is PENDING
     const order = await prisma.order.findUnique({
       where: { id: orderId }
@@ -71,7 +71,7 @@ export class AssignmentService {
           agentId: selectedAgentId,
           attemptNumber,
           status: AttemptStatus.ASSIGNED,
-          scheduledDate: new Date(),
+          scheduledDate: scheduledDate || new Date(),
         }
       });
 
@@ -109,6 +109,12 @@ export class AssignmentService {
           distance: calculatedDistance
         }
       };
+    });
+
+    import('./NotificationService').then(({ NotificationService }) => {
+      NotificationService.sendNotification(result.order.id, result.order.status).catch(err => {
+        console.error('Failed to dispatch notification', err);
+      });
     });
 
     return result;

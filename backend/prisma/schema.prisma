@@ -61,6 +61,7 @@ enum NotificationStatus {
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
+  name         String   @default("Unknown User")
   passwordHash String
   role         Role
   isActive     Boolean  @default(true)
@@ -131,7 +132,8 @@ model RateConfiguration {
   b2bInterZoneRate Decimal  @db.Decimal(10, 2)
   b2cIntraZoneRate Decimal  @db.Decimal(10, 2)
   b2cInterZoneRate Decimal  @db.Decimal(10, 2)
-  codSurcharge     Decimal  @db.Decimal(10, 2)
+  b2bCodSurcharge  Decimal  @default(25) @db.Decimal(10, 2)
+  b2cCodSurcharge  Decimal  @default(25) @db.Decimal(10, 2)
   isActive         Boolean  @default(true)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

@@ -28,7 +28,7 @@ beforeAll(async () => {
   await prisma.$executeRaw`UPDATE "AgentProfile" SET "currentLocation" = ST_SetSRID(ST_MakePoint(-74.0060, 40.7128), 4326) WHERE id = ${ap.id}`;
 
   await prisma.rateConfiguration.create({
-    data: { b2bIntraZoneRate: 50, b2bInterZoneRate: 70, b2cIntraZoneRate: 60, b2cInterZoneRate: 80, codSurcharge: 25, isActive: true }
+    data: { b2bIntraZoneRate: 50, b2bInterZoneRate: 70, b2cIntraZoneRate: 60, b2cInterZoneRate: 80, b2cCodSurcharge: 25, b2bCodSurcharge: 25, isActive: true }
   });
   
   // Expose these for the tests
@@ -78,10 +78,14 @@ describe('Sprint 2 Integration Tests', () => {
       .set('Authorization', `Bearer ${customerToken}`)
       .set('Idempotency-Key', 'test-idemp-123')
       .send({
-        pickupAddress: '123 Test St',
-        dropAddress: '456 Drop St',
-        pickupZoneId: zone!.id,
-        dropZoneId: zone!.id,
+        pickupAddress: '123 Test St, Delhi',
+        pickupLat: 28.7041,
+        pickupLng: 77.1025,
+        pickupPincode: '10001',
+        dropAddress: '456 Drop St, Maharashtra',
+        dropLat: 19.0760,
+        dropLng: 72.8777,
+        dropPincode: '10002',
         length: 10,
         breadth: 10,
         height: 10,
@@ -90,6 +94,9 @@ describe('Sprint 2 Integration Tests', () => {
         paymentType: 'PREPAID'
       });
 
+    if (res.status !== 201) {
+      console.log('Order creation failed:', JSON.stringify(res.body, null, 2));
+    }
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
     orderId = res.body.data.id;
@@ -107,10 +114,14 @@ describe('Sprint 2 Integration Tests', () => {
       .set('Authorization', `Bearer ${customerToken}`)
       .set('Idempotency-Key', 'test-idemp-123')
       .send({
-        pickupAddress: '123 Test St',
-        dropAddress: '456 Drop St',
-        pickupZoneId: zone!.id,
-        dropZoneId: zone!.id,
+        pickupAddress: '123 Test St, Delhi',
+        pickupLat: 28.7041,
+        pickupLng: 77.1025,
+        pickupPincode: '10001',
+        dropAddress: '456 Drop St, Maharashtra',
+        dropLat: 19.0760,
+        dropLng: 72.8777,
+        dropPincode: '10002',
         length: 10,
         breadth: 10,
         height: 10,
@@ -157,8 +168,8 @@ describe('Sprint 2 Integration Tests', () => {
     const agentEmail = `concurrent_agent_${Date.now()}@logistics.com`;
     const a = await prisma.user.create({ data: { email: agentEmail, passwordHash: hash, role: Role.AGENT } });
     const ap = await prisma.agentProfile.create({ data: { userId: a.id, isAvailable: true, currentZoneId: zone!.id } });
-    // Place agent at specific coordinates
-    await prisma.$executeRaw`UPDATE "AgentProfile" SET "currentLocation" = ST_SetSRID(ST_MakePoint(-74.0100, 40.7100), 4326) WHERE id = ${ap.id}`;
+    // Place agent at specific coordinates (Delhi)
+    await prisma.$executeRaw`UPDATE "AgentProfile" SET "currentLocation" = ST_SetSRID(ST_MakePoint(77.2167, 28.6328), 4326) WHERE id = ${ap.id}`;
 
     // 2. Create a fresh order
     const orderRes = await request(app)
@@ -166,10 +177,14 @@ describe('Sprint 2 Integration Tests', () => {
       .set('Authorization', `Bearer ${customerToken}`)
       .set('Idempotency-Key', `test-idemp-concurrent-${Date.now()}`)
       .send({
-        pickupAddress: '123 Concurrency St',
-        dropAddress: '456 Drop St',
-        pickupZoneId: zone!.id,
-        dropZoneId: zone!.id,
+        pickupAddress: '123 Concurrency St, Delhi',
+        pickupLat: 28.7041,
+        pickupLng: 77.1025,
+        pickupPincode: '110001',
+        dropAddress: '456 Drop St, Maharashtra',
+        dropLat: 19.0760,
+        dropLng: 72.8777,
+        dropPincode: '400001',
         length: 10, breadth: 10, height: 10, actualWeight: 5,
         orderType: 'B2C', paymentType: 'PREPAID'
       });

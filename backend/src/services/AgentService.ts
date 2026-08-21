@@ -40,4 +40,10 @@ export class AgentService {
       } : null
     }));
   }
+  static async updateStatus(userId: string, isAvailable: boolean) {
+    return prisma.agentProfile.update({
+      where: { userId },
+      data: { isAvailable }
+    });
+  }
 }

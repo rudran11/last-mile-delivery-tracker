@@ -6,6 +6,7 @@ import { ProtectedRoute } from './components/layout/ProtectedRoute';
 // Pages
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 
 // Customer
 import CustomerDashboard from './features/customer/CustomerDashboard';
@@ -23,6 +24,9 @@ import DeliveryDetailsPage from './features/agent/DeliveryDetailsPage';
 import ControlTowerPage from './features/admin/ControlTowerPage';
 import DispatchPanelPage from './features/admin/DispatchPanelPage';
 import AdminOrderLedgerPage from './features/admin/AdminOrderLedgerPage';
+import AdminConfigurationPage from './features/admin/AdminConfigurationPage';
+import AdminRateCardsPage from './features/admin/AdminRateCardsPage';
+import AdminCreateOrderPage from './features/admin/AdminCreateOrderPage';
 
 const App = () => {
   const { initialize, isInitializing } = useAuthStore();
@@ -41,6 +45,7 @@ const App = () => {
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
 
         {/* Customer Routes */}
         <Route element={<ProtectedRoute allowedRoles={['CUSTOMER']} />}>
@@ -63,6 +68,9 @@ const App = () => {
           <Route path="/admin" element={<ControlTowerPage />} />
           <Route path="/admin/dispatch" element={<DispatchPanelPage />} />
           <Route path="/admin/orders" element={<AdminOrderLedgerPage />} />
+          <Route path="/admin/orders/create" element={<AdminCreateOrderPage />} />
+          <Route path="/admin/configuration/zones" element={<AdminConfigurationPage />} />
+          <Route path="/admin/configuration/rates" element={<AdminRateCardsPage />} />
         </Route>
 
         {/* Fallback */}

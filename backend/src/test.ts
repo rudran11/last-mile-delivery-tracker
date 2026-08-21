@@ -87,7 +87,7 @@ async function runTests() {
     const user = await prisma.user.create({ data: { email: `price_upd_${Date.now()}@test.com`, passwordHash: 'h', role: Role.CUSTOMER } });
     const zone = await prisma.zone.create({ data: { name: `Z3_${Date.now()}` } });
     const rateConfig = await prisma.rateConfiguration.create({
-      data: { b2bIntraZoneRate: 50, b2bInterZoneRate: 70, b2cIntraZoneRate: 60, b2cInterZoneRate: 80, codSurcharge: 25, isActive: true }
+      data: { b2bIntraZoneRate: 50, b2bInterZoneRate: 70, b2cIntraZoneRate: 60, b2cInterZoneRate: 80, b2cCodSurcharge: 25, b2bCodSurcharge: 25, isActive: true }
     });
     const order = await prisma.order.create({
       data: {

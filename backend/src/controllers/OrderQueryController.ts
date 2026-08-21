@@ -5,7 +5,12 @@ export class OrderQueryController {
   static async listOrders(req: Request, res: Response, next: NextFunction) {
     try {
       const { userId, role } = req.user as any;
-      const result = await OrderQueryService.listOrders(userId, role);
+      const filters = {
+        status: req.query.status as string,
+        zoneId: req.query.zoneId as string,
+        agentId: req.query.agentId as string,
+      };
+      const result = await OrderQueryService.listOrders(userId, role, filters);
       res.json({ success: true, data: result });
     } catch (error) {
       next(error);
