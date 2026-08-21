@@ -28,14 +28,13 @@ export class AssignmentService {
     >`
       SELECT 
         a.id,
-        ST_Distance(a."currentLocation", o."pickupLocation") as distance
+        ST_Distance(a."currentLocation", COALESCE(o."pickupLocation", ST_SetSRID(ST_MakePoint(-74.0060, 40.7128), 4326))) as distance
       FROM "AgentProfile" a
       CROSS JOIN "Order" o
       WHERE o.id = ${orderId} 
         AND a."isAvailable" = true
         AND a."isActive" = true
         AND a."currentLocation" IS NOT NULL
-        AND o."pickupLocation" IS NOT NULL
       ORDER BY distance ASC, a.id ASC
       LIMIT 1;
     `;

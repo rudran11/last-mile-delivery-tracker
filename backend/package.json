@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "migrate": "prisma migrate dev --name init_database_schema",
-    "start": "ts-node src/server.ts",
+    "start": "ts-node --files src/server.ts",
     "dev": "nodemon src/server.ts",
     "test": "jest"
   },

@@ -30,6 +30,7 @@ export const errorHandler = (
     });
   }
 
+  console.error('CRITICAL UNHANDLED ERROR:', err);
   logger.error('Unhandled error', { error: err.message, stack: err.stack });
 
   return res.status(500).json({

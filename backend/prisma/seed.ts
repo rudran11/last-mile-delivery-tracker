@@ -1,17 +1,22 @@
 import { PrismaClient, Role, OrderType, PaymentType, OrderStatus, AttemptStatus, ZoneRelationshipType } from '@prisma/client'
+import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient()
 
 async function main() {
+  const adminHash = await bcrypt.hash('admin123', 10);
+  const customerHash = await bcrypt.hash('customer123', 10);
+  const agentHash = await bcrypt.hash('agent123', 10);
+
   // 1. Users
-  const admin = await prisma.user.create({ data: { email: 'admin@test.com', passwordHash: 'hashedpwd', role: Role.ADMIN } })
-  const customer1 = await prisma.user.create({ data: { email: 'customer1@test.com', passwordHash: 'hashedpwd', role: Role.CUSTOMER } })
-  const customer2 = await prisma.user.create({ data: { email: 'customer2@test.com', passwordHash: 'hashedpwd', role: Role.CUSTOMER } })
+  const admin = await prisma.user.create({ data: { email: 'admin@unthinkable.co', passwordHash: adminHash, role: Role.ADMIN } })
+  const customer1 = await prisma.user.create({ data: { email: 'customer@unthinkable.co', passwordHash: customerHash, role: Role.CUSTOMER } })
+  const customer2 = await prisma.user.create({ data: { email: 'customer2@test.com', passwordHash: customerHash, role: Role.CUSTOMER } })
 
   // Agents
-  const agent1 = await prisma.user.create({ data: { email: 'agent1@test.com', passwordHash: 'hashedpwd', role: Role.AGENT } })
-  const agent2 = await prisma.user.create({ data: { email: 'agent2@test.com', passwordHash: 'hashedpwd', role: Role.AGENT } })
-  const agent3 = await prisma.user.create({ data: { email: 'agent3@test.com', passwordHash: 'hashedpwd', role: Role.AGENT } })
+  const agent1 = await prisma.user.create({ data: { email: 'agent1@unthinkable.co', passwordHash: agentHash, role: Role.AGENT } })
+  const agent2 = await prisma.user.create({ data: { email: 'agent2@test.com', passwordHash: agentHash, role: Role.AGENT } })
+  const agent3 = await prisma.user.create({ data: { email: 'agent3@test.com', passwordHash: agentHash, role: Role.AGENT } })
 
   // 2. Zones & Areas
   const northZone = await prisma.zone.create({ data: { name: 'North Zone' } })

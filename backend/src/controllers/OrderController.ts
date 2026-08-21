@@ -24,4 +24,18 @@ export class OrderController {
       next(error);
     }
   }
+
+  static async getQuote(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = createOrderSchema.parse(req.body);
+      const quote = await OrderService.getQuote(data);
+      
+      res.status(200).json({
+        success: true,
+        data: quote,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

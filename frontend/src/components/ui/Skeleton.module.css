@@ -1,0 +1,21 @@
+.skeleton {
+  background-color: var(--color-border);
+  border-radius: var(--radius-md);
+  animation: shimmer 1.5s infinite linear;
+  background: linear-gradient(
+    90deg,
+    var(--color-border) 0%,
+    rgba(226, 232, 240, 0.5) 50%,
+    var(--color-border) 100%
+  );
+  background-size: 200% 100%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}

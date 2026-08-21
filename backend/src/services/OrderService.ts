@@ -108,6 +108,17 @@ export class OrderService {
           pricingSnapshot: true,
         }
       });
+      
+      // Simulate Geocoding of addresses to PostGIS points for the Nearest-Agent Routing Engine
+      const lon = -74.0060 + (Math.random() - 0.5) * 0.1;
+      const lat = 40.7128 + (Math.random() - 0.5) * 0.1;
+      await tx.$executeRaw`
+        UPDATE "Order" 
+        SET "pickupLocation" = ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326), 
+            "dropLocation" = ST_SetSRID(ST_MakePoint(${lon + 0.01}, ${lat + 0.01}), 4326) 
+        WHERE id = ${createdOrder.id}
+      `;
+
       return createdOrder;
     });
 
@@ -116,6 +127,36 @@ export class OrderService {
     setTimeout(() => processedKeys.delete(idempotencyKey), 1000 * 60 * 60);
 
     return order;
+  }
+
+  static async getQuote(data: CreateOrderInput) {
+    const isIntraZone = data.pickupZoneId === data.dropZoneId;
+    let zoneRelationship: ZoneRelationshipType = ZoneRelationshipType.INTRA_ZONE;
+    
+    if (!isIntraZone) {
+      zoneRelationship = ZoneRelationshipType.INTER_ZONE;
+    }
+
+    const rateConfig = await prisma.rateConfiguration.findFirst({
+      where: { isActive: true },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (!rateConfig) {
+      throw new BadRequestError('No active rate configuration found');
+    }
+
+    const pricingSnapshotData = PricingService.calculate({
+      length: data.length,
+      breadth: data.breadth,
+      height: data.height,
+      actualWeight: data.actualWeight,
+      orderType: data.orderType,
+      paymentType: data.paymentType,
+      zoneRelationship,
+    }, rateConfig);
+
+    return pricingSnapshotData;
   }
 }
 
