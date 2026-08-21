@@ -232,8 +232,10 @@ export class OrderService {
     }
 
     import('./NotificationService').then(({ NotificationService }) => {
-      NotificationService.sendNotification(order.id, OrderStatus.PENDING).catch(err => {
-        logger.error('Failed to dispatch notification', { error: err.message });
+      import('@prisma/client').then(({ NotificationEvent }) => {
+        NotificationService.emit(order.id, NotificationEvent.ORDER_CREATED, `order-created-${order.id}`).catch(err => {
+          logger.error('Failed to dispatch notification', { error: err });
+        });
       });
     });
 
@@ -256,6 +258,14 @@ export class OrderService {
         actorId: adminId,
         metadata: JSON.stringify({ event: 'ADMIN_OVERRIDE', previousStatus: order.status })
       }
+    });
+
+    import('./NotificationService').then(({ NotificationService }) => {
+      import('@prisma/client').then(({ NotificationEvent }) => {
+        NotificationService.emit(orderId, NotificationEvent.ADMIN_STATUS_OVERRIDE, `admin-override-${orderId}-${Date.now()}`).catch(err => {
+          logger.error('Failed to dispatch admin override notification', { error: err });
+        });
+      });
     });
 
     return updatedOrder;

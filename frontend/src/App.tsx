@@ -27,6 +27,7 @@ import AdminOrderLedgerPage from './features/admin/AdminOrderLedgerPage';
 import AdminConfigurationPage from './features/admin/AdminConfigurationPage';
 import AdminRateCardsPage from './features/admin/AdminRateCardsPage';
 import AdminCreateOrderPage from './features/admin/AdminCreateOrderPage';
+import { AdminNotificationsPage } from './features/admin/AdminNotificationsPage';
 
 const App = () => {
   const { initialize, isInitializing } = useAuthStore();
@@ -71,6 +72,7 @@ const App = () => {
           <Route path="/admin/orders/create" element={<AdminCreateOrderPage />} />
           <Route path="/admin/configuration/zones" element={<AdminConfigurationPage />} />
           <Route path="/admin/configuration/rates" element={<AdminRateCardsPage />} />
+          <Route path="/admin/notifications" element={<AdminNotificationsPage />} />
         </Route>
 
         {/* Fallback */}

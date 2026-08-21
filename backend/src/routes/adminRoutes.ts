@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireRole } from '../middlewares/authMiddleware';
 import { Role } from '@prisma/client';
 import { AdminConfigurationController } from '../controllers/AdminConfigurationController';
+import { NotificationController } from '../controllers/NotificationController';
 
 const router = Router();
 
@@ -27,5 +28,11 @@ router.put('/rates/:id', AdminConfigurationController.updateRateConfiguration);
 // Orders
 router.post('/orders', AdminConfigurationController.createOrder);
 router.post('/orders/:id/override-status', AdminConfigurationController.overrideOrderStatus);
+
+// Notifications
+router.get('/notifications', NotificationController.getNotifications);
+
+// Customers
+router.get('/customers', AdminConfigurationController.getCustomers);
 
 export default router;

@@ -171,26 +171,28 @@ describe('Sprint 2 Integration Tests', () => {
     // Place agent at specific coordinates (Delhi)
     await prisma.$executeRaw`UPDATE "AgentProfile" SET "currentLocation" = ST_SetSRID(ST_MakePoint(77.2167, 28.6328), 4326) WHERE id = ${ap.id}`;
 
-    // 2. Create a fresh order
-    const orderRes = await request(app)
-      .post('/api/v1/orders')
-      .set('Authorization', `Bearer ${customerToken}`)
-      .set('Idempotency-Key', `test-idemp-concurrent-${Date.now()}`)
-      .send({
+    // 2. Create a fresh order via Prisma to bypass the Controller's automatic assignment background job
+    const newOrder = await prisma.order.create({
+      data: {
+        customerId,
         pickupAddress: '123 Concurrency St, Delhi',
-        pickupLat: 28.7041,
-        pickupLng: 77.1025,
-        pickupPincode: '110001',
         dropAddress: '456 Drop St, Maharashtra',
-        dropLat: 19.0760,
-        dropLng: 72.8777,
-        dropPincode: '400001',
-        length: 10, breadth: 10, height: 10, actualWeight: 5,
-        orderType: 'B2C', paymentType: 'PREPAID'
-      });
-    const newOrderId = orderRes.body.data.id;
+        pickupZoneId: zone!.id,
+        dropZoneId: zone!.id,
+        length: 10, breadth: 10, height: 10, actualWeight: 5, volumetricWeight: 0.2, billableWeight: 5,
+        orderType: 'B2C', paymentType: 'PREPAID',
+        calculatedCharge: 100,
+        status: 'PENDING'
+      }
+    });
+    const newOrderId = newOrder.id;
+
     // Set pickup coordinates for this order so the agent is nearby
-    await prisma.$executeRaw`UPDATE "Order" SET "pickupLocation" = ST_SetSRID(ST_MakePoint(-74.0105, 40.7105), 4326) WHERE id = ${newOrderId}`;
+    await prisma.$executeRaw`
+      UPDATE "Order" 
+      SET "pickupLocation" = ST_SetSRID(ST_MakePoint(-74.0105, 40.7105), 4326)
+      WHERE id = ${newOrderId}
+    `;
 
     // 3. Attempt two simultaneous assignments
     const promise1 = request(app)
@@ -206,6 +208,10 @@ describe('Sprint 2 Integration Tests', () => {
     const successCount = [res1.status, res2.status].filter(s => s === 200).length;
     const errorCount = [res1.status, res2.status].filter(s => s === 409 || s === 400).length;
     
+    if (successCount !== 1) {
+      console.log('Assignment Concurrency Failed. Res1:', res1.body, 'Res2:', res2.body);
+    }
+
     expect(successCount).toBe(1);
     expect(errorCount).toBe(1);
   });

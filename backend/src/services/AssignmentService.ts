@@ -112,8 +112,10 @@ export class AssignmentService {
     });
 
     import('./NotificationService').then(({ NotificationService }) => {
-      NotificationService.sendNotification(result.order.id, result.order.status).catch(err => {
-        console.error('Failed to dispatch notification', err);
+      import('@prisma/client').then(({ NotificationEvent }) => {
+        NotificationService.emit(result.order.id, NotificationEvent.ASSIGNED, `assigned-${result.deliveryAttempt.id}`).catch(err => {
+          console.error('Failed to dispatch notification', err);
+        });
       });
     });
 

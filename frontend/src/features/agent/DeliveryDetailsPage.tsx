@@ -76,6 +76,26 @@ const DeliveryDetailsPage = () => {
     }
   };
 
+  const handleFailDelivery = async () => {
+    if (!order) return;
+    const reason = window.prompt("Enter failure reason (e.g., Customer not available):");
+    if (!reason) return;
+
+    setIsUpdating(true);
+    try {
+      await api.patch(`/orders/${id}/status`, {
+        status: 'FAILED',
+        failureReason: reason
+      });
+      await fetchOrder();
+    } catch (err) {
+      console.error('Failed to mark as failed', err);
+      alert('Failed to mark as failed');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   const nextLabel = order ? getNextActionLabel(order.status) : null;
 
   return (
@@ -123,13 +143,26 @@ const DeliveryDetailsPage = () => {
                     </p>
                   </div>
                   {nextLabel && (
-                    <Button 
-                      size="lg" 
-                      onClick={handleUpdateStatus} 
-                      isLoading={isUpdating}
-                    >
-                      {nextLabel}
-                    </Button>
+                    <div style={{ display: 'flex', gap: '1rem' }}>
+                      {order.status === 'OUT_FOR_DELIVERY' && (
+                        <Button 
+                          size="lg" 
+                          variant="outline"
+                          onClick={handleFailDelivery} 
+                          isLoading={isUpdating}
+                          style={{ borderColor: 'var(--color-error)', color: 'var(--color-error)' }}
+                        >
+                          Mark Failed
+                        </Button>
+                      )}
+                      <Button 
+                        size="lg" 
+                        onClick={handleUpdateStatus} 
+                        isLoading={isUpdating}
+                      >
+                        {nextLabel}
+                      </Button>
+                    </div>
                   )}
                 </div>
               </CardContent>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
-import { Settings, Map, MapPin, Plus, CheckCircle2 } from 'lucide-react';
+import { Settings, Map, MapPin, Plus, CheckCircle2, BarChart, MessageSquare, Box, PlusCircle, CreditCard } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { api } from '../../services/ApiClient';
@@ -9,11 +9,13 @@ import { Badge } from '../../components/ui/Badge';
 import { Input } from '../../components/ui/Input';
 
 const navItems = [
-  { label: 'Control Tower', href: '/admin', icon: <Settings size={20} /> },
-  { label: 'Dispatch Panel', href: '/admin/dispatch', icon: <MapPin size={20} /> },
-  { label: 'Global Orders', href: '/admin/orders', icon: <Map size={20} /> },
-  { label: 'Zones & Areas', href: '/admin/configuration/zones', icon: <Map size={20} /> },
-  { label: 'Rate Cards', href: '/admin/configuration/rates', icon: <Settings size={20} /> },
+  { label: 'Control Tower', href: '/admin', icon: <BarChart size={20} /> },
+  { label: 'Communications', href: '/admin/notifications', icon: <MessageSquare size={20} /> },
+  { label: 'Dispatch Panel', href: '/admin/dispatch', icon: <Map size={20} /> },
+  { label: 'Order Ledger', href: '/admin/orders', icon: <Box size={20} /> },
+  { label: 'Create Order', href: '/admin/orders/create', icon: <PlusCircle size={20} /> },
+  { label: 'Geographic Zones', href: '/admin/configuration/zones', icon: <Settings size={20} /> },
+  { label: 'Rate Cards', href: '/admin/configuration/rates', icon: <CreditCard size={20} /> },
 ];
 
 const AdminConfigurationPage = () => {

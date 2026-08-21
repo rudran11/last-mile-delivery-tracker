@@ -58,6 +58,18 @@ enum NotificationStatus {
   FAILED
 }
 
+enum NotificationEvent {
+  ORDER_CREATED
+  ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  FAILED
+  RESCHEDULED
+  ADMIN_STATUS_OVERRIDE
+}
+
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -234,7 +246,8 @@ model Notification {
   orderId       String
   order         Order              @relation(fields: [orderId], references: [id])
   channel       Channel
-  event         OrderStatus
+  event         NotificationEvent
+  idempotencyKey String            @unique
   status        NotificationStatus @default(PENDING)
   failureReason String?
   createdAt     DateTime           @default(now())

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
-import { Map, Layers, ClipboardList, Target, User, X } from 'lucide-react';
+import { Map, Layers, ClipboardList, Target, User, X, BarChart, MessageSquare, Box, PlusCircle, Settings, CreditCard } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { api } from '../../services/ApiClient';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table';
@@ -10,9 +10,13 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
 
 const navItems = [
-  { label: 'Control Tower', href: '/admin', icon: <Map size={20} /> },
-  { label: 'Dispatch Panel', href: '/admin/dispatch', icon: <Layers size={20} /> },
-  { label: 'Global Orders', href: '/admin/orders', icon: <ClipboardList size={20} /> },
+  { label: 'Control Tower', href: '/admin', icon: <BarChart size={20} /> },
+  { label: 'Communications', href: '/admin/notifications', icon: <MessageSquare size={20} /> },
+  { label: 'Dispatch Panel', href: '/admin/dispatch', icon: <Map size={20} /> },
+  { label: 'Order Ledger', href: '/admin/orders', icon: <Box size={20} /> },
+  { label: 'Create Order', href: '/admin/orders/create', icon: <PlusCircle size={20} /> },
+  { label: 'Geographic Zones', href: '/admin/configuration/zones', icon: <Settings size={20} /> },
+  { label: 'Rate Cards', href: '/admin/configuration/rates', icon: <CreditCard size={20} /> },
 ];
 
 const DispatchPanelPage = () => {

@@ -102,8 +102,20 @@ export class LifecycleService {
     });
 
     import('./NotificationService').then(({ NotificationService }) => {
-      NotificationService.sendNotification(result.order.id, result.order.status).catch(err => {
-        console.error('Failed to dispatch notification', { error: err.message });
+      import('@prisma/client').then(({ NotificationEvent }) => {
+        let event = NotificationEvent.ORDER_CREATED as any; // default dummy
+        switch (result.order.status) {
+          case OrderStatus.PICKED_UP: event = NotificationEvent.PICKED_UP; break;
+          case OrderStatus.IN_TRANSIT: event = NotificationEvent.IN_TRANSIT; break;
+          case OrderStatus.OUT_FOR_DELIVERY: event = NotificationEvent.OUT_FOR_DELIVERY; break;
+          case OrderStatus.DELIVERED: event = NotificationEvent.DELIVERED; break;
+          case OrderStatus.FAILED: event = NotificationEvent.FAILED; break;
+          default: return; // no standard notification for PENDING or ASSIGNED here
+        }
+        const idempotencyKey = `status-update-${result.order.id}-${result.order.status}-${Date.now()}`;
+        NotificationService.emit(result.order.id, event, idempotencyKey, { failureReason }).catch(err => {
+          console.error('Failed to dispatch notification', { error: err.message });
+        });
       });
     });
 
@@ -117,7 +129,7 @@ export class LifecycleService {
     if (order.customerId !== customerId) throw new ForbiddenError('You do not own this order');
     if (order.status !== OrderStatus.FAILED) throw new BadRequestError('Only FAILED orders can be rescheduled');
 
-    return await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const updatedOrder = await tx.order.update({
         where: { id: orderId },
         data: { status: OrderStatus.PENDING }
@@ -134,5 +146,15 @@ export class LifecycleService {
 
       return { order: updatedOrder, trackingHistory, scheduledDate };
     });
+
+    import('./NotificationService').then(({ NotificationService }) => {
+      import('@prisma/client').then(({ NotificationEvent }) => {
+        NotificationService.emit(orderId, NotificationEvent.RESCHEDULED, `reschedule-${orderId}-${Date.now()}`, { scheduledDate }).catch(err => {
+          console.error('Failed to dispatch reschedule notification', { error: err.message });
+        });
+      });
+    });
+
+    return result;
   }
 }

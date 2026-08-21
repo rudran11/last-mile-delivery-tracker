@@ -107,4 +107,17 @@ export class AdminConfigurationController {
       res.json({ success: true, data: order });
     } catch (error) { next(error); }
   }
+
+  // Customers
+  static async getCustomers(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { PrismaClient } = await import('@prisma/client');
+      const prisma = new PrismaClient();
+      const customers = await prisma.user.findMany({
+        where: { role: 'CUSTOMER' },
+        select: { id: true, name: true, email: true }
+      });
+      res.json({ success: true, data: customers });
+    } catch (error) { next(error); }
+  }
 }
