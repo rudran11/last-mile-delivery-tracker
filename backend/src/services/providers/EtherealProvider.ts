@@ -37,8 +37,12 @@ export class EtherealProvider implements IEmailProvider {
   async send(to: string, subject: string, text: string, html?: string): Promise<boolean> {
     try {
       const transporter = await this.getTransporter();
+      const fromName = process.env.SMTP_FROM_NAME || 'DeliveryTracker';
+      const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || 'noreply@deliverytracker.com';
+      const fromString = process.env.SMTP_FROM || `"${fromName}" <${fromEmail}>`;
+
       const message = {
-        from: '"Unthinkable Delivery" <noreply@unthinkable.co>',
+        from: fromString,
         to,
         subject,
         text,
