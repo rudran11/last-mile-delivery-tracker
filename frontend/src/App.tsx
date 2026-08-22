@@ -28,6 +28,7 @@ import AdminConfigurationPage from './features/admin/AdminConfigurationPage';
 import AdminRateCardsPage from './features/admin/AdminRateCardsPage';
 import AdminCreateOrderPage from './features/admin/AdminCreateOrderPage';
 import { AdminNotificationsPage } from './features/admin/AdminNotificationsPage';
+import { AdminAgentsPage } from './features/admin/AdminAgentsPage';
 
 const App = () => {
   const { initialize, isInitializing } = useAuthStore();
@@ -67,6 +68,7 @@ const App = () => {
         {/* Admin Routes */}
         <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
           <Route path="/admin" element={<ControlTowerPage />} />
+          <Route path="/admin/agents" element={<AdminAgentsPage />} />
           <Route path="/admin/dispatch" element={<DispatchPanelPage />} />
           <Route path="/admin/orders" element={<AdminOrderLedgerPage />} />
           <Route path="/admin/orders/create" element={<AdminCreateOrderPage />} />

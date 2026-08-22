@@ -5,7 +5,7 @@ export class AssignmentController {
   static async assignAgent(req: Request, res: Response, next: NextFunction) {
     try {
       const { id: orderId } = req.params;
-      const actorId = (req.user as any).userId; // Can be Admin doing manual assignment
+      const actorId = ((req as any).user).userId; // Can be Admin doing manual assignment
 
       const result = await AssignmentService.assignAgent(orderId as string, actorId as string);
       
@@ -21,7 +21,7 @@ export class AssignmentController {
     try {
       const { id: orderId } = req.params;
       const { agentId: targetAgentId } = req.body;
-      const actorId = (req.user as any).userId;
+      const actorId = ((req as any).user).userId;
 
       if (!targetAgentId) {
         throw new Error('agentId is required');

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
-import { Map, Layers, ClipboardList, Settings, MoreHorizontal, BarChart, MessageSquare, Box, PlusCircle, CreditCard } from 'lucide-react';
+import { Map, Layers, ClipboardList, Settings, MoreHorizontal, BarChart, MessageSquare, Box, PlusCircle, CreditCard , Users} from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { api } from '../../services/ApiClient';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table';
@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 
 const navItems = [
   { label: 'Control Tower', href: '/admin', icon: <BarChart size={20} /> },
+  { label: 'Fleet / Agents', href: '/admin/agents', icon: <Users size={20} /> },
   { label: 'Communications', href: '/admin/notifications', icon: <MessageSquare size={20} /> },
   { label: 'Dispatch Panel', href: '/admin/dispatch', icon: <Map size={20} /> },
   { label: 'Order Ledger', href: '/admin/orders', icon: <Box size={20} /> },

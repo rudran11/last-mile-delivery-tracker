@@ -182,7 +182,7 @@ const RegisterPage = () => {
               </CardContent>
               
               <CardFooter className={styles.footer}>
-                <Button type="submit" variant="primary" fullWidth disabled={isLoading}>
+                <Button type="submit" variant="primary" style={{ width: '100%' }} disabled={isLoading}>
                   {isLoading ? 'Sending Verification...' : 'Create Account'}
                 </Button>
                 <p className={styles.registerLink}>
@@ -229,7 +229,7 @@ const RegisterPage = () => {
               </CardContent>
               
               <CardFooter className={styles.footer} style={{ flexDirection: 'column', gap: '1rem' }}>
-                <Button type="submit" variant="primary" fullWidth disabled={isLoading || otp.length !== 6}>
+                <Button type="submit" variant="primary" style={{ width: '100%' }} disabled={isLoading || otp.length !== 6}>
                   {isLoading ? 'Verifying...' : 'Verify Email'}
                 </Button>
                 

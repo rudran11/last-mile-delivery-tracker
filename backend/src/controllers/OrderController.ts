@@ -12,7 +12,7 @@ export class OrderController {
       }
 
       const data = createOrderSchema.parse(req.body);
-      const customerId = (req.user as any).userId as string;
+      const customerId = (req as any).user.userId as string;
 
       const order = await OrderService.createOrder(customerId, data, idempotencyKey);
       
@@ -42,7 +42,7 @@ export class OrderController {
   static async rescheduleOrder(req: Request, res: Response, next: NextFunction) {
     try {
       const id = req.params.id as string;
-      const customerId = (req.user as any).userId as string;
+      const customerId = (req as any).user.userId as string;
       const { scheduledDate } = req.body;
       const parsedDate = scheduledDate ? new Date(scheduledDate) : undefined;
       

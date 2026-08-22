@@ -100,7 +100,7 @@ export class AdminConfigurationController {
     try {
       const id = req.params.id as string;
       const { status } = req.body;
-      const adminId = (req.user as any).userId as string;
+      const adminId = ((req as any).user).userId as string;
       
       const { OrderService } = await import('../services/OrderService');
       const order = await OrderService.overrideStatus(id, status, adminId);

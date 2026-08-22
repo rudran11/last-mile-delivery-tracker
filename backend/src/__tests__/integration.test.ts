@@ -35,6 +35,36 @@ beforeAll(async () => {
   (global as any).adminEmail = adminEmail;
   (global as any).customerEmail = customerEmail;
   (global as any).agentEmail = agentEmail;
+  (global as any).zoneId = z.id;
+});
+
+afterAll(async () => {
+  // Clean up transactional data
+  await prisma.notification.deleteMany({});
+  await prisma.trackingHistory.deleteMany({});
+  await prisma.deliveryAttempt.deleteMany({});
+  await prisma.pricingSnapshot.deleteMany({});
+  await prisma.order.deleteMany({});
+
+  const zId = (global as any).zoneId;
+  if (zId) {
+    await prisma.agentProfile.deleteMany({ where: { currentZoneId: zId } });
+    await prisma.zone.deleteMany({ where: { id: zId } });
+  }
+
+  // Clean up users
+  await prisma.user.deleteMany({
+    where: {
+      OR: [
+        { email: { startsWith: 'admin_' } },
+        { email: { startsWith: 'john_' } },
+        { email: { startsWith: 'agent_' } }
+      ]
+    }
+  });
+
+  // Restore baseline agents availability just in case
+  await prisma.agentProfile.updateMany({ data: { isAvailable: true } });
 });
 
 describe('Sprint 2 Integration Tests', () => {

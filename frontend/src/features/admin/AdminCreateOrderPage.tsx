@@ -6,11 +6,12 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { api } from '../../services/ApiClient';
 import { useNavigate } from 'react-router-dom';
-import { Map, Layers, ClipboardList, Settings, BarChart, MessageSquare, Box, PlusCircle, CreditCard, MapPin, IndianRupee, ArrowRight, Package } from 'lucide-react';
+import { Map, Layers, ClipboardList, Settings, BarChart, MessageSquare, Box, PlusCircle, CreditCard, MapPin, IndianRupee, ArrowRight, Package, Users } from 'lucide-react';
 import styles from '../customer/CreateOrderPage.module.css'; // Reuse customer styles
 
 const navItems = [
   { label: 'Control Tower', href: '/admin', icon: <BarChart size={20} /> },
+  { label: 'Fleet / Agents', href: '/admin/agents', icon: <Users size={20} /> },
   { label: 'Communications', href: '/admin/notifications', icon: <MessageSquare size={20} /> },
   { label: 'Dispatch Panel', href: '/admin/dispatch', icon: <Map size={20} /> },
   { label: 'Order Ledger', href: '/admin/orders', icon: <Box size={20} /> },

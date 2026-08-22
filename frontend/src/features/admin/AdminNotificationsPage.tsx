@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Card } from '../../components/ui/Card';
 import { api } from '../../services/ApiClient';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
-import { BarChart, Map, Box, Settings, CreditCard, PlusCircle, MessageSquare } from 'lucide-react';
+import { BarChart, Map, Box, Settings, CreditCard, PlusCircle, MessageSquare , Users} from 'lucide-react';
 
 interface NotificationRecord {
   id: string;
@@ -18,6 +18,7 @@ interface NotificationRecord {
 
 const navItems = [
   { label: 'Control Tower', href: '/admin', icon: <BarChart size={20} /> },
+  { label: 'Fleet / Agents', href: '/admin/agents', icon: <Users size={20} /> },
   { label: 'Communications', href: '/admin/notifications', icon: <MessageSquare size={20} /> },
   { label: 'Dispatch Panel', href: '/admin/dispatch', icon: <Map size={20} /> },
   { label: 'Order Ledger', href: '/admin/orders', icon: <Box size={20} /> },

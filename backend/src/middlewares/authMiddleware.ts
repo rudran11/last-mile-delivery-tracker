@@ -12,7 +12,7 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction) => 
   const token = authHeader.split(' ')[1];
   try {
     const payload = verifyToken(token as string);
-    req.user = payload as any;
+    (req as any).user = payload as any;
     next();
   } catch (error) {
     throw new UnauthorizedError('Invalid or expired token');
@@ -21,7 +21,7 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction) => 
 
 export const requireRole = (roles: Role[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    if (!(req as any).user || !roles.includes((req as any).user.role)) {
       throw new ForbiddenError('Insufficient permissions');
     }
     next();

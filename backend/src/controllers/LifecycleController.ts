@@ -14,8 +14,8 @@ export class LifecycleController {
     try {
       const { id: orderId } = req.params;
       const { status, failureReason } = statusSchema.parse(req.body);
-      const actorId = (req.user as any).userId;
-      const actorRole = (req.user as any).role;
+      const actorId = ((req as any).user).userId;
+      const actorRole = ((req as any).user).role;
 
       if (status === OrderStatus.FAILED && !failureReason) {
         throw new BadRequestError('failureReason is required when status is FAILED');
@@ -32,7 +32,7 @@ export class LifecycleController {
   static async rescheduleOrder(req: Request, res: Response, next: NextFunction) {
     try {
       const { id: orderId } = req.params;
-      const customerId = (req.user as any).userId;
+      const customerId = ((req as any).user).userId;
 
       const result = await LifecycleService.rescheduleOrder(orderId as string, customerId);
       

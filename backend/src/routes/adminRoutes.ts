@@ -3,6 +3,7 @@ import { requireAuth, requireRole } from '../middlewares/authMiddleware';
 import { Role } from '@prisma/client';
 import { AdminConfigurationController } from '../controllers/AdminConfigurationController';
 import { NotificationController } from '../controllers/NotificationController';
+import { AdminAgentController } from '../controllers/AdminAgentController';
 
 const router = Router();
 
@@ -34,5 +35,11 @@ router.get('/notifications', NotificationController.getNotifications);
 
 // Customers
 router.get('/customers', AdminConfigurationController.getCustomers);
+
+// Agents (Fleet Management)
+router.get('/agents', AdminAgentController.getAgents);
+router.post('/agents', AdminAgentController.createAgent);
+router.put('/agents/:id', AdminAgentController.updateAgent);
+router.delete('/agents/:id', AdminAgentController.deactivateAgent);
 
 export default router;

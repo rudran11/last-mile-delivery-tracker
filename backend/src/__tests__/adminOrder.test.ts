@@ -40,6 +40,46 @@ beforeAll(async () => {
   customerId = custRes.body.data.user.id;
 });
 
+afterAll(async () => {
+  // Clean up transactional data
+  await prisma.notification.deleteMany({});
+  await prisma.trackingHistory.deleteMany({});
+  await prisma.deliveryAttempt.deleteMany({});
+  await prisma.pricingSnapshot.deleteMany({});
+  await prisma.order.deleteMany({});
+
+  // Clean up specific test setup
+  if (zoneId) {
+    await prisma.agentProfile.deleteMany({ where: { currentZoneId: zoneId } });
+    await prisma.zone.deleteMany({ where: { id: zoneId } });
+  }
+
+  // Clean up users and profiles
+  const usersToDelete = await prisma.user.findMany({
+    where: {
+      OR: [
+        { email: { startsWith: 'admin_ord_' } },
+        { email: { startsWith: 'cust_ord_' } },
+        { email: { startsWith: 'agent_ord_' } }
+      ]
+    },
+    include: { agentProfile: true }
+  });
+
+  for (const u of usersToDelete) {
+    if (u.agentProfile) {
+      await prisma.agentProfile.deleteMany({ where: { id: u.agentProfile.id } });
+    }
+  }
+
+  await prisma.user.deleteMany({
+    where: { id: { in: usersToDelete.map((u: any) => u.id) } }
+  });
+
+  // Restore baseline agents availability just in case
+  await prisma.agentProfile.updateMany({ data: { isAvailable: true } });
+});
+
 describe('Admin Order Creation (Sprint 1-6 E2E Verification)', () => {
   let createdOrderId = '';
 
