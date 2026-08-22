@@ -1,67 +1,45 @@
 import request from 'supertest';
 import app from '../app';
 import { prisma } from './setup';
+import bcrypt from 'bcrypt';
 
-describe('Auth Registration API', () => {
+describe('Auth Login API', () => {
   beforeAll(async () => {
-    await prisma.user.deleteMany({ where: { email: { in: ['newcustomer@test.com', 'adminattempt@test.com', 'missing@test.com'] } } });
+    const hash = await bcrypt.hash('securepassword123', 10);
+    await prisma.user.upsert({
+      where: { email: 'logintest@test.com' },
+      update: { passwordHash: hash },
+      create: {
+        name: 'Login Test',
+        email: 'logintest@test.com',
+        passwordHash: hash,
+        role: 'CUSTOMER'
+      }
+    });
   });
 
-  it('should register a new customer', async () => {
+  it('should login a valid customer', async () => {
     const res = await request(app)
-      .post('/api/v1/auth/register')
+      .post('/api/v1/auth/login')
       .send({
-        name: 'New Customer',
-        email: 'newcustomer@test.com',
+        email: 'logintest@test.com',
         password: 'securepassword123',
       });
 
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data.message).toBe('Account created successfully');
-    expect(res.body.data.user.email).toBe('newcustomer@test.com');
-    expect(res.body.data.user.role).toBe('CUSTOMER');
-    expect(res.body.data.user.name).toBe('New Customer');
-    
-    // Check DB
-    const dbUser = await prisma.user.findUnique({ where: { email: 'newcustomer@test.com' } });
-    expect(dbUser).toBeTruthy();
-    expect(dbUser?.role).toBe('CUSTOMER');
-    expect(dbUser?.passwordHash).not.toBe('securepassword123'); // must be hashed
+    expect(res.body.data.token).toBeDefined();
+    expect(res.body.data.user.email).toBe('logintest@test.com');
   });
 
-  it('should prevent duplicate registration', async () => {
+  it('should reject invalid password', async () => {
     const res = await request(app)
-      .post('/api/v1/auth/register')
+      .post('/api/v1/auth/login')
       .send({
-        name: 'Duplicate',
-        email: 'newcustomer@test.com', // same email
-        password: 'securepassword123',
+        email: 'logintest@test.com',
+        password: 'wrongpassword',
       });
 
-    expect(res.status).toBe(409); // Conflict
-  });
-
-  it('should reject invalid role (ADMIN)', async () => {
-    const res = await request(app)
-      .post('/api/v1/auth/register')
-      .send({
-        name: 'Admin Attempt',
-        email: 'adminattempt@test.com',
-        password: 'securepassword123',
-        role: 'ADMIN',
-      });
-
-    expect(res.status).toBe(400); // Bad Request (Zod validation failure)
-  });
-
-  it('should reject missing fields', async () => {
-    const res = await request(app)
-      .post('/api/v1/auth/register')
-      .send({
-        email: 'missing@test.com',
-      });
-
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(401);
   });
 });

@@ -99,8 +99,8 @@ describe('Admin Order Creation (Sprint 1-6 E2E Verification)', () => {
       FROM "Order" WHERE id = ${createdOrderId}
     `;
     
-    expect(point[0].lng).toBeCloseTo(77.1025, 4);
-    expect(point[0].lat).toBeCloseTo(28.7041, 4);
+    expect(point[0]?.lng).toBeCloseTo(77.1025, 4);
+    expect(point[0]?.lat).toBeCloseTo(28.7041, 4);
   });
 
   it('should resolve correct Zone references', async () => {
