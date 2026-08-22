@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Ca
 import { api } from '../../services/ApiClient';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { format } from 'date-fns';
 
@@ -19,6 +19,8 @@ const OrderDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchParams] = useSearchParams();
+  const isCreated = searchParams.get('created') === 'true';
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -85,6 +87,12 @@ const OrderDetailsPage = () => {
           </Button>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
+              {isCreated && (
+                <div style={{ display: 'inline-flex', alignItems: 'center', padding: '0.5rem 1rem', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--color-success-bg)', color: 'var(--color-success)', marginBottom: '1rem', fontWeight: 600 }}>
+                  <Package size={20} style={{ marginRight: '8px' }} />
+                  Order Confirmed!
+                </div>
+              )}
               <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>
                 Order Details
               </h1>
@@ -198,15 +206,21 @@ const OrderDetailsPage = () => {
                 {order.pricingSnapshot ? (
                   <div style={{ maxWidth: '400px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
+                      <span style={{ color: 'var(--color-text-secondary)' }}>Payment Method</span>
+                      <strong>{order.pricingSnapshot.paymentType}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
+                      <span style={{ color: 'var(--color-text-secondary)' }}>Order Type</span>
+                      <strong>{order.pricingSnapshot.orderType}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
                       <span style={{ color: 'var(--color-text-secondary)' }}>Base Charge</span>
                       <span>₹{order.pricingSnapshot.baseCharge}</span>
                     </div>
-                    {order.pricingSnapshot.appliedCodSurcharge > 0 && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
-                        <span style={{ color: 'var(--color-text-secondary)' }}>COD Surcharge</span>
-                        <span>₹{order.pricingSnapshot.appliedCodSurcharge}</span>
-                      </div>
-                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
+                      <span style={{ color: 'var(--color-text-secondary)' }}>COD Surcharge {order.pricingSnapshot.paymentType === 'COD' ? `(${order.pricingSnapshot.orderType})` : ''}</span>
+                      <span>₹{order.pricingSnapshot.paymentType === 'PREPAID' ? '0' : order.pricingSnapshot.appliedCodSurcharge}</span>
+                    </div>
                     <div style={{ borderTop: '1px solid var(--color-border)', margin: 'var(--space-3) 0' }}></div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 'var(--text-lg)' }}>
                       <span>Total</span>

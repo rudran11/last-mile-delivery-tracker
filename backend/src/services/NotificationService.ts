@@ -23,7 +23,7 @@ export class NotificationService {
       // 2. Fetch Order Data
       const order = await prisma.order.findUnique({
         where: { id: orderId },
-        include: { customer: true }
+        include: { customer: true, pricingSnapshot: true }
       });
 
       if (!order || !order.customer.email) {
@@ -80,7 +80,16 @@ export class NotificationService {
       case NotificationEvent.ORDER_CREATED:
         subject = `Order Created — #${order.id}`;
         text += `Your order ${order.id} has been successfully created.\n`;
-        text += `Pickup: ${order.pickupAddress}\nDrop: ${order.dropAddress}\n`;
+        text += `Pickup: ${order.pickupAddress}\nDrop: ${order.dropAddress}\n\n`;
+        if (order.pricingSnapshot) {
+          text += `--- BILLING DETAILS ---\n`;
+          text += `Payment Method: ${order.pricingSnapshot.paymentType}\n`;
+          text += `Order Type: ${order.pricingSnapshot.orderType}\n`;
+          text += `Base Charge: ₹${order.pricingSnapshot.baseCharge}\n`;
+          text += `COD Surcharge: ₹${order.pricingSnapshot.paymentType === 'PREPAID' ? 0 : order.pricingSnapshot.appliedCodSurcharge}\n`;
+          text += `Final Payable: ₹${order.calculatedCharge}\n`;
+          text += `-----------------------\n`;
+        }
         break;
       case NotificationEvent.ASSIGNED:
         subject = `Order Assigned — #${order.id}`;

@@ -163,7 +163,7 @@ const CreateOrderPage = () => {
         }
       });
       
-      setSuccessOrder(response);
+      navigate(`/customer/orders/${response.id}?created=true`);
     } catch (err: any) {
       console.error('Failed to create order', err);
       alert(err.message || 'Failed to create order.');
@@ -172,58 +172,7 @@ const CreateOrderPage = () => {
     }
   };
 
-  if (successOrder) {
-    return (
-      <DashboardLayout navItems={navItems}>
-        <div className={styles.container} style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'center', paddingTop: '4rem' }}>
-          <div style={{ display: 'inline-flex', padding: '1rem', borderRadius: '50%', backgroundColor: 'var(--color-success-bg)', color: 'var(--color-success)', marginBottom: '1.5rem' }}>
-            <Package size={48} />
-          </div>
-          <h1 style={{ fontSize: 'var(--text-3xl)', fontWeight: 700, marginBottom: '0.5rem' }}>Order Confirmed!</h1>
-          <p style={{ color: 'var(--color-text-secondary)', marginBottom: '2rem' }}>Your shipment has been successfully created.</p>
-          
-          <Card style={{ textAlign: 'left', marginBottom: '2rem' }}>
-            <CardContent style={{ paddingTop: '1.5rem' }}>
-              <div style={{ display: 'grid', gap: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--color-text-secondary)' }}>Order ID</span>
-                  <strong style={{ fontFamily: 'monospace' }}>{successOrder.id.split('-')[0]}</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--color-text-secondary)' }}>Status</span>
-                  <Badge variant="warning">{successOrder.status}</Badge>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--color-text-secondary)' }}>Total Price</span>
-                  <strong>₹{successOrder.calculatedCharge}</strong>
-                </div>
-                <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '0.5rem 0' }} />
-                <div>
-                  <span style={{ display: 'block', color: 'var(--color-text-secondary)', marginBottom: '0.25rem' }}>Assignment State</span>
-                  {successOrder.autoAssigned ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-success)', fontWeight: 500 }}>
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--color-success)' }}></div>
-                      Assigned to {successOrder.assignmentDetails?.agentEmail || 'nearest available agent'}
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-warning)', fontWeight: 500 }}>
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--color-warning)' }}></div>
-                      Assignment pending
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-            <Button variant="outline" onClick={() => setSuccessOrder(null)}>Create Another</Button>
-            <Button onClick={() => navigate(`/customer/orders/${successOrder.id}`)}>Track Order</Button>
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
 
   const isFormComplete = formData.pickupAddress && formData.dropAddress && 
                          formData.pickupLat !== 0 && formData.dropLat !== 0 &&
@@ -355,12 +304,18 @@ const CreateOrderPage = () => {
                       <span>Base Charge</span>
                       <span>₹{quote.baseCharge}</span>
                     </div>
-                    {quote.appliedCodSurcharge > 0 && (
-                      <div className={styles.quoteRow}>
-                        <span>COD Surcharge</span>
-                        <span>₹{quote.appliedCodSurcharge}</span>
-                      </div>
-                    )}
+                    <div className={styles.quoteRow}>
+                      <span>Payment Method</span>
+                      <strong>{formData.paymentType}</strong>
+                    </div>
+                    <div className={styles.quoteRow}>
+                      <span>Order Type</span>
+                      <strong>{formData.orderType}</strong>
+                    </div>
+                    <div className={styles.quoteRow}>
+                      <span>COD Surcharge {formData.paymentType === 'COD' ? `(${formData.orderType})` : ''}</span>
+                      <span>₹{formData.paymentType === 'PREPAID' ? '0' : quote.appliedCodSurcharge}</span>
+                    </div>
                     <hr className={styles.divider} />
                     <div className={styles.quoteTotalRow}>
                       <span>Total</span>
