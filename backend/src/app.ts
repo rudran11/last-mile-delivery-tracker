@@ -1,11 +1,15 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import { env } from './config/env';
 import { errorHandler } from './middlewares/errorHandler';
 import routes from './routes';
 
 const app = express();
+console.log('APP DATABASE URL:', process.env.DATABASE_URL);
 
-app.use(cors());
+app.use(helmet());
+app.use(cors({ origin: env.FRONTEND_URL }));
 app.use(express.json());
 
 // Routes

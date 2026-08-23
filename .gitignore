@@ -8,3 +8,4 @@ coverage/
 *.log
 backend/dist/
 frontend/dist/
+.env.test
