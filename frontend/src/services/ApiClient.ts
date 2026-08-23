@@ -11,11 +11,11 @@ export class ApiError extends Error {
 }
 
 class ApiClient {
-  private baseUrl = '/api/v1';
+  private baseUrl = import.meta.env.VITE_API_URL || '/api/v1';
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const token = localStorage.getItem('auth_token');
-    
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...((options.headers as Record<string, string>) || {}),
