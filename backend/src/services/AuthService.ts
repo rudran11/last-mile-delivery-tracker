@@ -4,10 +4,10 @@ import crypto from 'crypto';
 import { LoginInput, RegisterInput, OtpVerifyInput, OtpResendInput } from '../validators/authValidators';
 import { UnauthorizedError, ConflictError, BadRequestError } from '../errors/DomainError';
 import { generateToken } from '../utils/jwt';
-import { ResendEmailProvider } from './providers/ResendEmailProvider';
+import { EmailProviderFactory } from './providers/EmailProviderFactory';
 
 const prisma = new PrismaClient();
-const emailProvider = new ResendEmailProvider();
+const emailProvider = EmailProviderFactory.getProvider();
 
 export class AuthService {
   static async login(data: LoginInput) {

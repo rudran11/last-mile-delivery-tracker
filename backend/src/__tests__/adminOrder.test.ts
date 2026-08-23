@@ -4,6 +4,12 @@ import { prisma } from './setup';
 import { Role } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
+import { TestFactory } from './factories/TestFactory';
+
+jest.mock('../services/NotificationService', () => ({
+  NotificationService: { emit: async () => true }
+}));
+
 let adminToken = '';
 let customerToken = '';
 let customerId = '';
@@ -16,19 +22,24 @@ beforeAll(async () => {
   const customerEmail = `cust_ord_${Date.now()}@test.com`;
   const agentEmail = `agent_ord_${Date.now()}@test.com`;
 
-  await prisma.user.create({ data: { email: adminEmail, passwordHash: hash, role: Role.ADMIN } });
+  const uAdmin = await prisma.user.create({ data: { email: adminEmail, passwordHash: hash, role: Role.ADMIN } });
   const c = await prisma.user.create({ data: { email: customerEmail, passwordHash: hash, role: Role.CUSTOMER } });
-  const a = await prisma.user.create({ data: { email: agentEmail, passwordHash: hash, role: Role.AGENT } });
-
-  const z = await prisma.zone.create({ data: { name: `Admin Test Zone ${Date.now()}` } });
+  
+  TestFactory.createdUserIds.push(uAdmin.id, c.id);
+  
+  // Create North Zone exactly as OrderService expects for 'Delhi'
+  const z = await TestFactory.createZone('North Zone');
   zoneId = z.id;
   
+  // Use TestFactory to create a proper rate config
+  await TestFactory.createRateConfiguration();
+
+  // Agent in North Zone
+  const a = await prisma.user.create({ data: { email: agentEmail, passwordHash: hash, role: Role.AGENT } });
+  TestFactory.createdUserIds.push(a.id);
   const ap = await prisma.agentProfile.create({ data: { userId: a.id, isAvailable: true, currentZoneId: z.id } });
   await prisma.$executeRaw`UPDATE "AgentProfile" SET "currentLocation" = ST_SetSRID(ST_MakePoint(77.2167, 28.6328), 4326) WHERE id = ${ap.id}`;
 
-  await prisma.rateConfiguration.create({
-    data: { b2bIntraZoneRate: 50, b2bInterZoneRate: 70, b2cIntraZoneRate: 60, b2cInterZoneRate: 80, b2cCodSurcharge: 25, b2bCodSurcharge: 25, isActive: true }
-  });
   
   // Login Admin
   const adminRes = await request(app).post('/api/v1/auth/login').send({ email: adminEmail, password: 'password123' });
@@ -40,48 +51,17 @@ beforeAll(async () => {
   customerId = custRes.body.data.user.id;
 });
 
+let createdOrderId = '';
+console.log('TEST DATABASE URL:', process.env.DATABASE_URL);
+
 afterAll(async () => {
-  // Clean up transactional data
-  await prisma.notification.deleteMany({});
-  await prisma.trackingHistory.deleteMany({});
-  await prisma.deliveryAttempt.deleteMany({});
-  await prisma.pricingSnapshot.deleteMany({});
-  await prisma.order.deleteMany({});
-
-  // Clean up specific test setup
-  if (zoneId) {
-    await prisma.agentProfile.deleteMany({ where: { currentZoneId: zoneId } });
-    await prisma.zone.deleteMany({ where: { id: zoneId } });
+  if (createdOrderId) {
+    TestFactory.createdOrderIds.push(createdOrderId);
   }
-
-  // Clean up users and profiles
-  const usersToDelete = await prisma.user.findMany({
-    where: {
-      OR: [
-        { email: { startsWith: 'admin_ord_' } },
-        { email: { startsWith: 'cust_ord_' } },
-        { email: { startsWith: 'agent_ord_' } }
-      ]
-    },
-    include: { agentProfile: true }
-  });
-
-  for (const u of usersToDelete) {
-    if (u.agentProfile) {
-      await prisma.agentProfile.deleteMany({ where: { id: u.agentProfile.id } });
-    }
-  }
-
-  await prisma.user.deleteMany({
-    where: { id: { in: usersToDelete.map((u: any) => u.id) } }
-  });
-
-  // Restore baseline agents availability just in case
-  await prisma.agentProfile.updateMany({ data: { isAvailable: true } });
+  await TestFactory.cleanup();
 });
 
 describe('Admin Order Creation (Sprint 1-6 E2E Verification)', () => {
-  let createdOrderId = '';
 
   it('should reject CUSTOMER calling Admin order creation endpoint', async () => {
     const res = await request(app)

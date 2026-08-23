@@ -18,6 +18,12 @@ describe('Auth Login API', () => {
     });
   });
 
+  afterAll(async () => {
+    await prisma.user.deleteMany({
+      where: { email: 'logintest@test.com' }
+    });
+  });
+
   it('should login a valid customer', async () => {
     const res = await request(app)
       .post('/api/v1/auth/login')

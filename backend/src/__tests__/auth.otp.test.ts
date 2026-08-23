@@ -3,28 +3,40 @@ import app from '../app';
 import { prisma } from './setup';
 import bcrypt from 'bcrypt';
 
+import { MockEmailProvider } from '../services/providers/MockEmailProvider';
+
 describe('OTP Customer Registration', () => {
   const testEmail = `otp_test_${Date.now()}@example.com`;
   const password = 'StrongPassword123!';
 
-  // Helpers to get OTP from db since email is mocked in tests
-  const getOtpHash = async (email: string) => {
-    const pending = await prisma.pendingRegistration.findUnique({ where: { email } });
-    return pending?.otpHash;
+  const getValidOtpForHash = async (email: string) => {
+    const mockProvider = MockEmailProvider.getInstance();
+    const emailData = mockProvider.sentEmails.find(e => e.to === email);
+    if (!emailData) throw new Error(`Email not found in mock provider for ${email}`);
+    const match = emailData.text.match(/\b\d{6}\b/);
+    if (!match) throw new Error('OTP not found in email text');
+    return match[0];
   };
 
-  const getValidOtpForHash = async (email: string) => {
-    // Brute force is impossible, but for tests we can't easily extract the plain OTP because it's not returned.
-    // Wait, how do we test successful verification if we only store the hash and don't log the plain OTP?
-    // In test environment, we might need a backdoor or we can mock bcrypt.hash?
-    // Actually, we can just manually UPDATE the otpHash to a known bcrypt hash of '123456' to test the verify endpoint!
-    const knownHash = await bcrypt.hash('123456', 10);
-    await prisma.pendingRegistration.update({
-      where: { email },
-      data: { otpHash: knownHash }
+  afterAll(async () => {
+    // Delete pending registrations created in this test
+    await prisma.pendingRegistration.deleteMany({
+      where: { email: { in: [testEmail, `another@example.com`] } }
     });
-    return '123456';
-  };
+    // Delete any users created by these tests
+    await prisma.user.deleteMany({
+      where: { email: { startsWith: 'otp_test_' } }
+    });
+    await prisma.user.deleteMany({
+      where: { email: { startsWith: 'admin_inject_' } }
+    });
+    await prisma.user.deleteMany({
+      where: { email: { startsWith: 'agent_inject_' } }
+    });
+    await prisma.user.deleteMany({
+      where: { email: { startsWith: 'unverified_' } }
+    });
+  });
 
   it('OTP-01: Registration creates PendingRegistration', async () => {
     const res = await request(app)

@@ -1,9 +1,13 @@
 import { PrismaClient, NotificationEvent } from '@prisma/client';
 import { NotificationService } from '../services/NotificationService';
+import { MockEmailProvider } from '../services/providers/MockEmailProvider';
 
 const prisma = new PrismaClient();
 
 describe('NotificationService (Sprint 6)', () => {
+  beforeEach(() => {
+    MockEmailProvider.getInstance().clear();
+  });
   let orderId: string;
   let customerId: string;
 
@@ -44,6 +48,22 @@ describe('NotificationService (Sprint 6)', () => {
   });
 
   afterAll(async () => {
+    // Delete test data
+    if (orderId) {
+      await prisma.notification.deleteMany({ where: { orderId } });
+      await prisma.order.deleteMany({ where: { id: orderId } });
+    }
+    
+    // Delete zone
+    const zone = await prisma.zone.findFirst({ where: { name: { startsWith: 'TestZone-' } } });
+    if (zone) {
+      await prisma.zone.delete({ where: { id: zone.id } });
+    }
+
+    if (customerId) {
+      await prisma.user.delete({ where: { id: customerId } });
+    }
+    
     await prisma.$disconnect();
   });
 

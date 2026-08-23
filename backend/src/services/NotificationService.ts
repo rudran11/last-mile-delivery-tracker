@@ -1,12 +1,12 @@
 import { PrismaClient, Channel, NotificationStatus, NotificationEvent } from '@prisma/client';
 import { logger } from '../utils/logger';
 import { IEmailProvider } from './providers/IEmailProvider';
-import { ResendEmailProvider } from './providers/ResendEmailProvider';
+import { EmailProviderFactory } from './providers/EmailProviderFactory';
 
 const prisma = new PrismaClient();
 
 export class NotificationService {
-  private static emailProvider: IEmailProvider = new ResendEmailProvider();
+  private static emailProvider: IEmailProvider = EmailProviderFactory.getProvider();
 
   static async emit(orderId: string, event: NotificationEvent, idempotencyKey: string, extraData?: any) {
     try {

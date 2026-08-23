@@ -3,6 +3,11 @@ import app from '../app';
 import { prisma } from './setup';
 import { OrderStatus, Role } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import { TestFactory } from './factories/TestFactory';
+
+jest.mock('../services/NotificationService', () => ({
+  NotificationService: { emit: async () => true }
+}));
 
 let adminToken = '';
 let customerToken = '';
@@ -18,53 +23,33 @@ beforeAll(async () => {
   const customerEmail = `john_${Date.now()}@example.com`;
   const agentEmail = `agent_${Date.now()}@logistics.com`;
 
-  await prisma.user.create({ data: { email: adminEmail, passwordHash: hash, role: Role.ADMIN } });
+  const uAdmin = await prisma.user.create({ data: { email: adminEmail, passwordHash: hash, role: Role.ADMIN } });
   const c = await prisma.user.create({ data: { email: customerEmail, passwordHash: hashCustomer, role: Role.CUSTOMER } });
   const a = await prisma.user.create({ data: { email: agentEmail, passwordHash: hashAgent, role: Role.AGENT } });
 
-  const z = await prisma.zone.create({ data: { name: `Test Zone ${Date.now()}` } });
+  TestFactory.createdUserIds.push(uAdmin.id, c.id, a.id);
+
+  // Integration test uses Delhi -> Maharashtra. Needs North Zone and West Zone
+  const zN = await TestFactory.createZone('North Zone');
+  const zW = await TestFactory.createZone('West Zone');
   
-  const ap = await prisma.agentProfile.create({ data: { userId: a.id, isAvailable: true, currentZoneId: z.id } });
+  const ap = await prisma.agentProfile.create({ data: { userId: a.id, isAvailable: true, currentZoneId: zN.id } });
   await prisma.$executeRaw`UPDATE "AgentProfile" SET "currentLocation" = ST_SetSRID(ST_MakePoint(-74.0060, 40.7128), 4326) WHERE id = ${ap.id}`;
 
-  await prisma.rateConfiguration.create({
-    data: { b2bIntraZoneRate: 50, b2bInterZoneRate: 70, b2cIntraZoneRate: 60, b2cInterZoneRate: 80, b2cCodSurcharge: 25, b2bCodSurcharge: 25, isActive: true }
-  });
+  await TestFactory.createRateConfiguration();
   
   // Expose these for the tests
   (global as any).adminEmail = adminEmail;
   (global as any).customerEmail = customerEmail;
   (global as any).agentEmail = agentEmail;
-  (global as any).zoneId = z.id;
+  (global as any).zoneId = zN.id;
 });
 
 afterAll(async () => {
-  // Clean up transactional data
-  await prisma.notification.deleteMany({});
-  await prisma.trackingHistory.deleteMany({});
-  await prisma.deliveryAttempt.deleteMany({});
-  await prisma.pricingSnapshot.deleteMany({});
-  await prisma.order.deleteMany({});
-
-  const zId = (global as any).zoneId;
-  if (zId) {
-    await prisma.agentProfile.deleteMany({ where: { currentZoneId: zId } });
-    await prisma.zone.deleteMany({ where: { id: zId } });
+  if (orderId) {
+    TestFactory.createdOrderIds.push(orderId);
   }
-
-  // Clean up users
-  await prisma.user.deleteMany({
-    where: {
-      OR: [
-        { email: { startsWith: 'admin_' } },
-        { email: { startsWith: 'john_' } },
-        { email: { startsWith: 'agent_' } }
-      ]
-    }
-  });
-
-  // Restore baseline agents availability just in case
-  await prisma.agentProfile.updateMany({ data: { isAvailable: true } });
+  await TestFactory.cleanup();
 });
 
 describe('Sprint 2 Integration Tests', () => {
@@ -197,6 +182,7 @@ describe('Sprint 2 Integration Tests', () => {
     const hash = await bcrypt.hash('agentpassword', 10);
     const agentEmail = `concurrent_agent_${Date.now()}@logistics.com`;
     const a = await prisma.user.create({ data: { email: agentEmail, passwordHash: hash, role: Role.AGENT } });
+    TestFactory.createdUserIds.push(a.id);
     const ap = await prisma.agentProfile.create({ data: { userId: a.id, isAvailable: true, currentZoneId: zone!.id } });
     // Place agent at specific coordinates (Delhi)
     await prisma.$executeRaw`UPDATE "AgentProfile" SET "currentLocation" = ST_SetSRID(ST_MakePoint(77.2167, 28.6328), 4326) WHERE id = ${ap.id}`;
@@ -216,6 +202,7 @@ describe('Sprint 2 Integration Tests', () => {
       }
     });
     const newOrderId = newOrder.id;
+    TestFactory.createdOrderIds.push(newOrderId);
 
     // Set pickup coordinates for this order so the agent is nearby
     await prisma.$executeRaw`
