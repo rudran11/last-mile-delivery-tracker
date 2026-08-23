@@ -1,16 +1,27 @@
 # Last Mile Delivery Tracker
 
+[![Production Status](https://img.shields.io/badge/Status-Production-success)](#production-deployment)
+[![CI/CD](https://img.shields.io/badge/CI%2FCD-Active-blue)](#cicd-validation)
+[![Database](https://img.shields.io/badge/Database-PostgreSQL%2FPostGIS-blue)](#database-architecture)
+
 An intelligent last-mile logistics platform for order management, dynamic pricing, spatial dispatch, delivery tracking, and fleet operations.
 
-## Overview
+## Project Overview
 
 The Last Mile Delivery Tracker is designed to solve complex operational challenges in modern logistics. Rather than just tracking a package, this system coordinates dynamic B2B and B2C pricing rules, geographically-aware agent assignment using PostGIS, and high-fidelity operational transparency for three distinct user roles.
 
-- **Admin (Operations Center):** Manages the fleet, configures geographic zones and rate cards, monitors real-time dispatch, and oversees order lifecycles.
-- **Customer:** Receives instant, accurate quotes based on spatial constraints (Intra/Inter-zone), creates orders, and tracks real-time progress.
-- **Agent (Fleet):** Operates the delivery queue, processes delivery attempts, and updates lifecycle statuses dynamically.
+## Problem Statement
 
-## Key Capabilities
+Modern logistics platforms struggle with dispatching the right agent, transparently calculating pricing based on volumetric constraints, and tracking precise delivery events without race conditions or database locks. Generic CRUD applications fail to solve the actual geographic and concurrency challenges of a live delivery fleet.
+
+## Key Objectives
+
+1. Create a mathematically robust pricing engine supporting strict logistics constraints (B2B/B2C, zones, volumetric weight).
+2. Utilize native geospatial database queries to assign agents based on actual physical proximity.
+3. Eliminate operational race conditions preventing an agent from receiving simultaneous overlapping dispatches.
+4. Deliver high-fidelity traceability via an immutable tracking ledger.
+
+## Core Features
 
 | Capability | Status | Description |
 |---|---|---|
@@ -19,12 +30,8 @@ The Last Mile Delivery Tracker is designed to solve complex operational challeng
 | Dynamic Pricing | Implemented | B2B/B2C, volumetric vs actual weight, zone relationship mapping. |
 | COD Surcharges | Implemented | Automated Cash on Delivery surcharge application. |
 | Intelligent Dispatch | Implemented | Automated distance-based agent candidate scoring. |
-| Geospatial DB Integration | Implemented | Powered by PostgreSQL/PostGIS (`ST_Distance`, `ST_MakePoint`). |
-| Delivery Tracking | Implemented | Immutable event-driven historical ledger for each order. |
+| Delivery Tracking | Implemented | Immutable event-driven historical ledger for order states. |
 | Fleet Management | Implemented | Fleet tracking, zone assignment, availability toggling. |
-| Customer Feedback | Implemented | Delivery performance ratings and reviews. |
-| Agent Performance | Implemented | Fleet KPI tracking based on delivery success and feedback. |
-| Explainable Dispatch | Implemented | Real-time breakdown of why an agent was/wasn't selected. |
 
 ## Value-Added Features Beyond Core Requirements
 
@@ -43,17 +50,9 @@ Beyond the core functional requirements, the platform implements several additio
 | Delivery Attempts / Failure Handling | Dedicated delivery attempt tracking and failure/retry states | Improves visibility into unsuccessful final-mile execution |
 | Operational Notifications | Event-driven status triggers for email notifications via Resend | Keeps customers informed automatically |
 
-## Why This Architecture
-
-This platform leverages specific tools to solve core domain problems:
-
-- **PostGIS (`ST_Distance`):** Real-world dispatch requires knowing spatial proximity. Rather than pulling all agents into Node.js to calculate distance, PostGIS computes spatial proximity natively at the database layer, filtering candidates before they hit the application layer.
-- **Prisma Transactions:** Delivery assignments and status overrides require strict concurrency protection to prevent double-dispatching an agent.
-- **PricingSnapshot Pattern:** The pricing engine enforces immutability. An order placed today must retain today's rate configuration, even if rate cards change tomorrow. PricingSnapshots permanently record the mathematical breakdown at the time of creation.
-- **Zod + TypeScript:** Enforces rigorous contract boundaries, preventing invalid payload states (like negative weights or unknown coordinates) from reaching the database.
-- **Test Database Isolation:** Using a dedicated `DATABASE_URL_TEST` ensures that the integration tests (which aggressively wipe and seed states) never corrupt the development or staging databases.
-
 ## System Architecture
+
+### Development Architecture
 
 ```mermaid
 graph TD
@@ -71,25 +70,44 @@ graph TD
   Order --> Dispatch
   
   Service --> Prisma[Prisma ORM]
-  Prisma --> DB[(PostgreSQL + PostGIS)]
+  Prisma --> DB[(Local PostgreSQL + PostGIS)]
   
   DB --> Geocoding[External: Nominatim Geocoding]
 ```
 
-### Production Deployment Architecture
+### Production Architecture
 
-Browser
-↓
-Vercel frontend
-↓
-Render backend API
-↓
-Supabase PostgreSQL/PostGIS
+```mermaid
+graph TD
+  Browser[User Browser]
+  Vercel[Vercel Frontend]
+  Render[Render Backend API]
+  Supabase[(Supabase PostgreSQL/PostGIS)]
+  Resend[Resend Email Service]
+  Nominatim[Nominatim Geocoding]
 
-Supporting services:
-- Resend
-- Nominatim
+  Browser -->|HTTPS| Vercel
+  Vercel -->|REST API| Render
+  Render -->|Prisma Connection| Supabase
+  Render -->|API| Resend
+  Render -->|API| Nominatim
+```
 
+## Technology Stack
+
+| Layer | Technology | Purpose |
+|---|---|---|
+| **Frontend** | React 19 + TypeScript | Component-based UI architecture. |
+| **Styling** | Vanilla CSS Modules | Scoped, zero-dependency high-performance styling. |
+| **State/Routing** | React Router + Zustand | Client-side routing and minimal global state. |
+| **Backend** | Node.js + Express 5 | High-throughput REST API. |
+| **Database** | PostgreSQL 16 | Relational data integrity & ACID transactions. |
+| **Geospatial** | PostGIS | Native distance and geography computations. |
+| **ORM** | Prisma 5.19 | Type-safe database interactions and transactions. |
+| **Validation** | Zod | Runtime payload contract enforcement. |
+| **Auth** | JWT | Stateless, secure role-based session management. |
+| **Testing** | Jest + Supertest | Integration and E2E lifecycle testing. |
+| **CI/CD** | GitHub Actions | Automated regression and build enforcement. |
 
 ## User Roles & RBAC
 
@@ -125,17 +143,6 @@ stateDiagram-v2
 ```
 
 - **Transitions:** Transitions are strictly validated (e.g. an Agent cannot transition an order from `PENDING` to `DELIVERED`).
-- **Tracking Ledger:** Every state change emits a `TrackingHistory` event with the actor, timestamp, and metadata.
-
-## Pricing Engine
-
-The pricing engine dynamically calculates charges based on logistics rules:
-1. **Volumetric vs Actual Weight:** Calculates `(L * B * H) / 5000` and charges based on whichever is higher (`billableWeight`).
-2. **Zone Relationship:** Computes if the route is Intra-zone (same zone) or Inter-zone (cross zone).
-3. **Customer Class:** Diverges logic for B2B vs B2C rate cards.
-4. **Surcharges:** Automatically attaches fixed COD surcharges if the payment type requires it.
-
-**PricingSnapshot:** Upon order creation, all of the variables above (including the raw calculation breakdown) are serialized into a read-only `PricingSnapshot` record, completely decoupling the historical order from future rate configurations.
 
 ## Intelligent Dispatch
 
@@ -147,7 +154,15 @@ The dispatch engine operates on a multi-stage funnel:
 4. **Ranking:** Sorts eligible agents by absolute nearest proximity.
 5. **Atomic Assignment:** Locks the agent and generates a `DeliveryAttempt` record within a Prisma transaction to prevent race conditions.
 
-## Geocoding
+## Pricing Engine
+
+The pricing engine dynamically calculates charges based on logistics rules:
+1. **Volumetric vs Actual Weight:** Calculates `(L * B * H) / 5000` and charges based on whichever is higher (`billableWeight`).
+2. **Zone Relationship:** Computes if the route is Intra-zone (same zone) or Inter-zone (cross zone).
+3. **Customer Class:** Diverges logic for B2B vs B2C rate cards.
+4. **Surcharges:** Automatically attaches fixed COD surcharges if the payment type requires it.
+
+## Geospatial & Mapping
 
 The system utilizes **Nominatim (OpenStreetMap)** to dynamically convert human-readable addresses or fallback inputs into high-precision Latitude/Longitude coordinates. 
 These coordinates are then cast into PostGIS Geography points `Unsupported("geography(Point, 4326)")` for use in spatial distance equations.
@@ -156,126 +171,171 @@ These coordinates are then cast into PostGIS Geography points `Unsupported("geog
 
 Instead of mutating a single string, the system generates an append-only ledger (`TrackingHistory`). This provides operational transparency, allowing Customers and Admins to see exactly who performed an action (and when), ensuring accountability for failed deliveries or delays.
 
-## Technology Stack
+## Customer Feedback
 
-| Layer | Technology | Purpose |
-|---|---|---|
-| **Frontend** | React 19 + TypeScript | Component-based UI architecture. |
-| **Styling** | Vanilla CSS Modules | Scoped, zero-dependency high-performance styling. |
-| **State/Routing** | React Router + Zustand | Client-side routing and minimal global state. |
-| **Backend** | Node.js + Express 5 | High-throughput REST API. |
-| **Database** | PostgreSQL 16 | Relational data integrity & ACID transactions. |
-| **Geospatial** | PostGIS | Native distance and geography computations. |
-| **ORM** | Prisma 5.19 | Type-safe database interactions and transactions. |
-| **Validation** | Zod | Runtime payload contract enforcement. |
-| **Auth** | JWT | Stateless, secure role-based session management. |
-| **Testing** | Jest + Supertest | Integration and E2E lifecycle testing. |
+Once an order reaches the `DELIVERED` state, customers are prompted to provide a rating (1-5) and operational feedback for the assigned agent. This feedback is permanently tied to the `CustomerFeedback` model and contributes directly to the agent's performance metrics.
 
-## Project Structure
+## Database Architecture
 
-```text
-last-mile-delivery-tracker/
-├── backend/
-│   ├── prisma/             # Schema, migrations, and seed logic
-│   ├── src/
-│   │   ├── __tests__/      # Integration, RBAC, and dispatch tests
-│   │   ├── config/         # Environment and setup
-│   │   ├── controllers/    # Express route controllers
-│   │   ├── middlewares/    # JWT Auth & Role guards
-│   │   ├── routes/         # Express API definitions
-│   │   ├── services/       # Core domain logic (Pricing, Dispatch, etc)
-│   │   └── validators/     # Zod schemas
-│   └── package.json
-├── frontend/
-│   ├── src/
-│   │   ├── components/     # Shared UI primitives (Buttons, Cards, Layouts)
-│   │   ├── features/       # Role-based pages (Admin, Customer, Agent)
-│   │   ├── services/       # API client config
-│   │   └── App.tsx         # Route registry
-│   └── package.json
-└── docs/                   # Extended Architecture and API documentation
+### Entity Relationships
+
+```mermaid
+erDiagram
+    User ||--o| AgentProfile : has
+    User ||--o{ Order : creates
+    User ||--o{ TrackingHistory : acts_in
+    User ||--o{ CustomerFeedback : submits
+    
+    Zone ||--o{ Area : contains
+    Zone ||--o{ AgentProfile : manages
+    Zone ||--o{ Order : "pickup / drop"
+    
+    Order ||--o| PricingSnapshot : records
+    Order ||--o{ DeliveryAttempt : generates
+    Order ||--o{ TrackingHistory : emits
+    Order ||--o{ Notification : triggers
+    Order ||--o| CustomerFeedback : receives
+    
+    AgentProfile ||--o{ DeliveryAttempt : executes
+    AgentProfile ||--o{ CustomerFeedback : receives
+    
+    RateConfiguration ||--o{ PricingSnapshot : applies
 ```
 
-## Local Development Setup
+### Database Architecture Explanation
 
-### Prerequisites
-- Node.js (v18+)
-- PostgreSQL (with PostGIS extension installed and running). Recommended to use Docker for this.
+- **PostgreSQL & PostGIS:** Chosen because logistics fundamentally requires spatial queries (`ST_Distance`). Native PostGIS geography vectors calculate real-world physical proximity significantly faster than pulling raw records into Node.js to evaluate distance mathematically.
+- **Prisma ORM:** Enforces static schema types, guaranteeing geographic vectors and application relationships align without raw SQL injection vulnerabilities.
+- **Order Relationships:** Orders are uniquely bound to `Zones` (for pricing routing), `Users` (for authorization scoping), and `DeliveryAttempts` (for operational history).
+- **TrackingHistory Tracing:** Designed as an append-only ledger to ensure any Admin or Customer can retroactively audit an order's lifecycle without data loss.
+- **DeliveryAttempts Execution:** Distinct from orders, a DeliveryAttempt tracks *who* tried to deliver the order and *when*. If a delivery fails, the order can generate a new attempt with a different agent.
+- **PricingSnapshot Preservation:** Because rate cards (`RateConfiguration`) change over time, pricing constraints are rigidly snapshotted into `PricingSnapshot` when an order is created, preventing past orders from mutating if B2B/B2C rates change tomorrow.
 
-### 1. Database Setup
-Ensure you have a PostgreSQL instance with PostGIS available. (If using Docker, a standard `postgis/postgis` image works perfectly).
+## API Architecture
 
-### 2. Backend Setup
-```bash
-cd backend
-npm install
-cp .env.example .env
-# Edit .env with your local PostgreSQL credentials
+The backend exposes a structured REST architecture via Express routers:
 
-# Push schema to database
-npx prisma db push
+- `/api/auth`: Handles login, registration, and OTP verification workflows.
+- `/api/users` & `/api/customer`: Customer-specific profile and order retrieval logic.
+- `/api/orders`: Core CRUD and creation funnel for new order requests.
+- `/api/zones`: Read-only access to geographic zones and area metadata.
+- `/api/agents`: Agent-specific workflows, including state toggling and queue acceptance.
+- `/api/admin`: Administrative endpoints covering dispatch overrides, fleet management, and performance analysis.
 
-# (Optional) Seed the database with mock operational data
-npx prisma db seed
+## Security Architecture
 
-# Start the development server
-npm run dev
+- **Stateless Sessions (JWT):** All restricted actions require cryptographically signed Bearer tokens.
+- **RBAC (Role-Based Access Control):** Custom middleware intercepts requests to prevent Agents from accessing Admin endpoints, or Customers from viewing another user's orders.
+- **Bcrypt Hashing:** Passwords and OTP sequences are irreversibly hashed before database storage.
+- **Environment Boundaries:** All secrets, connection strings, and API keys are strictly managed via Render/Vercel platform configurations and never committed to Git.
+- **CORS Protection:** The API explicitly authorizes only the verified Vercel origin.
+- **Schema Contracts:** Incoming payloads are aggressively parsed via Zod to ensure no invalid geographic parameters reach the database layer.
+
+## Testing & Validation
+
+### Historical Development & Validation
+
+The system underwent 100+ historical development/validation scenarios before the final production database cleanup and migration. These were comprehensive, localized development validation scenarios—not all currently automated CI tests—and rigorously covered:
+- Authentication & RBAC boundaries.
+- Order lifecycles and feedback rules.
+- Agent assignment and intelligent spatial dispatch.
+- Tracking history constraints.
+- Notification triggers and edge cases.
+
+### Historical Automated Test Suite
+
+A massive suite of 12 historical test files (e.g., `dispatch.history.ts`, `lifecycle.e2e.history.ts`) was written during development. These files are intentionally retained in the codebase to document the rigorous E2E constraints tested. They are no longer actively executed because they rely on localized, aggressive database wiping, PostGIS dependencies, and deep mock seed states designed exclusively for the isolated `DATABASE_URL_TEST` environment.
+
+### Current Automated Regression Testing
+
+The CI pipeline executes **1 representative automated regression test**:
+- `backend/src/__tests__/pricing.regression.test.ts`
+
+This deterministic suite rigidly asserts that the volumetric calculations, B2B/B2C overrides, zone mapping, and COD surcharge logic inside `PricingService.calculate` remain mathematically sound without requiring database interactivity.
+
+### Concurrency & Reliability Testing
+
+The application architecture was explicitly validated against logistics reliability flaws:
+- **Double-Dispatch Race Conditions:** Prisma Interactive Transactions wrap the `AgentProfile` assignment, preventing two simultaneous operations from allocating the same agent.
+- **Idempotency:** Core endpoints are shielded from duplicate status transitions (e.g., an order cannot be marked `DELIVERED` twice).
+- **Test Database Isolation:** Assertions structurally verify that test teardown sequences cannot accidentally run against development or production datasets.
+
+### Database Testing
+
+Database validation included executing aggressive `reset-test-db` teardowns, manual coordinate auditing (verifying `Unsupported("geography(Point, 4326)")` injection mechanisms), and executing extensive row-count verifications before and after the production migration.
+
+### Production Validation
+
+The deployed system received direct manual validation across infrastructure boundaries.
+
+**Testing Matrix:**
+
+| Area | Historical Validation | Current Automated | Production Validation |
+|---|---|---|---|
+| Business Logic / Pricing | Yes (15+ scenarios) | Yes (Regression test) | Yes |
+| Spatial Dispatch | Yes (15+ scenarios) | No | Yes |
+| Concurrency / Race Conditions | Yes | No | Yes |
+| Route RBAC | Yes (20+ assertions) | No | Yes |
+| API / Infrastructure | Yes | No | Yes (CORS/Deploy) |
+
+### CI/CD Validation
+
+```mermaid
+graph LR
+  Push[GitHub Push/PR] --> CI[GitHub Actions]
+  CI --> Install[npm ci]
+  CI --> Prisma[npx prisma generate]
+  CI --> TSCheck[Backend / Frontend tsc]
+  CI --> Test[npm run test]
+  CI --> Build[Frontend Build]
 ```
 
-### 3. Frontend Setup
-```bash
-cd frontend
-npm install
-# Start the Vite development server
-npm run dev
+## Database Migration Journey
+
+```mermaid
+graph TD
+  Local[Local PostgreSQL/PostGIS] --> Dev[Development Phase]
+  Dev --> Validation[100+ Validation Scenarios]
+  Validation --> Cleanup[Final Database Cleanup]
+  Cleanup --> Migration[Migration Scripts]
+  Migration --> ProdDB[Supabase Production]
+  ProdDB --> ProdVal[Production Validation]
+  ProdVal --> Fix[Location Coordinate Correction]
+  Fix --> Final[Final Production Verification]
 ```
 
-## Test Database & Architecture
+## Production Incident / Lesson Learned
 
-The testing suite relies on a **completely isolated test database** to prevent destructive operations on your development data.
-When running `npm run test` in the `backend/` directory:
-1. The test runner strictly demands a `DATABASE_URL_TEST` environment variable.
-2. It enforces safety guards ensuring the test DB string explicitly contains "test" to prevent catastrophic user error.
-3. Tests aggressively wipe data, invoke the dispatch engine, and assert on spatial outcomes.
+### Problem
+Following production deployment, agent locations appeared as "Unknown" in the UI.
 
-**Status:** The historical development and validation testing focused heavily on Admin Dispatch, Pricing constraints, and RBAC enforcement.
+### Investigation
+Remote scratch scripts revealed that the production records contained `NULL` values for the geographic coordinates, despite the relational data migrating successfully.
 
-### Database Migration History
+### Root Cause
+When executing standard Prisma seeds against remote environments, PostGIS-specific vectors (`Unsupported("geography(Point, 4326)")`) are sometimes dropped if the raw SQL injection mechanisms aren't manually configured for the target environment's spatial reference ID.
 
-The database architecture followed this migration journey:
-Local PostgreSQL/PostGIS → development → extensive validation → database cleanup → production migration → Supabase PostgreSQL → production validation.
+### Resolution
+A targeted script restored strictly the required latitude/longitude vectors using `ST_MakePoint`, without modifying or deleting unrelated production data.
 
-Production credentials are never documented or committed to the repository.
+### Validation
+The production dashboard was refreshed, and real-time agent locations were successfully confirmed.
+
+### Engineering Lesson
+Unsupported database extensions (like PostGIS) require deliberate operational care when migrating standard relational ORMs to cloud environments.
 
 ## Production Deployment
 
-The application is deployed and operational on modern cloud infrastructure:
+The application is deployed and operational on modern cloud infrastructure.
 
-Browser
-↓
-Vercel Frontend
-↓
-Render Backend API
-↓
-Supabase PostgreSQL
-↓
-Resend Email Service
+- **Frontend:** [Vercel](https://last-mile-delivery-tracker-rudran.vercel.app)
+- **Backend:** [Render](https://last-mile-delivery-tracker-api-c4sl.onrender.com)
+- **Database:** Supabase PostgreSQL/PostGIS
+- **Email:** Resend
 
-### Production URLs
+## Production Configuration
 
-- **Frontend:** https://last-mile-delivery-tracker-rudran.vercel.app
-- **Backend:** https://last-mile-delivery-tracker-api-c4sl.onrender.com
-
-### Service Responsibilities
-
-- **Vercel:** Hosts the production React/Vite frontend.
-- **Render:** Hosts the Node.js/Express backend API. Handles authentication, business logic, API requests, rate limiting, and CORS.
-- **Supabase:** Hosts the production PostgreSQL database (with PostGIS) and stores all application data.
-- **Resend:** Handles transactional and verification email delivery.
-
-### Production Environment Variables
-
-Production secret values must be configured through Render and Vercel Environment Variables and must never be committed to Git.
+Production secret values are exclusively configured via platform Environment Variables.
 
 **Render Environment Variables:**
 - `DATABASE_URL`
@@ -286,61 +346,7 @@ Production secret values must be configured through Render and Vercel Environmen
 - `RESEND_FROM_EMAIL`
 
 **Vercel Environment Variables:**
-- `VITE_API_URL` (Points to the deployed Render backend API)
-
-### Production Deployment Checklist
-
-- [x] Frontend deployed to Vercel
-- [x] Backend deployed to Render
-- [x] Supabase PostgreSQL configured
-- [x] Production database populated with existing application data
-- [x] Frontend API URL configured
-- [x] Production CORS configured for the Vercel frontend
-- [x] Render proxy/rate-limit configuration handled
-- [x] Prisma production connection verified
-- [x] Production build verified
-- [x] Authentication/login tested
-- [x] Existing application data verified
-- [x] Resend API configured
-- [ ] Dedicated email-sending domain verified in Resend
-- [ ] Public registration with arbitrary external email addresses enabled after domain verification
-
-## CI/CD
-
-Every push to `main` and every Pull Request targeting `main` runs automated validation through GitHub Actions.
-
-Checks include:
-- Backend dependency installation (`npm ci`)
-- Prisma Client generation (`npx prisma generate`)
-- Backend TypeScript/build (`npx tsc -b`)
-- Backend automated regression test (`npm run test`)
-- Frontend dependency installation (`npm ci`)
-- Frontend TypeScript validation (`npx tsc --noEmit`)
-- Frontend production build (`npm run build`)
-
-The CI pipeline uses an isolated test environment and does not modify the production Supabase database.
-
-## Testing
-
-### Historical Development & Validation
-
-The system underwent extensive validation during development, with 100+ historical development/validation scenarios executed across core application workflows and edge cases before the final production database cleanup and migration. These were development/validation checks, NOT 100+ automated tests.
-
-Functional testing covered authentication/login, API behavior, database behavior, order workflows, pricing, dispatch, agent assignment, tracking/status transitions, edge cases, and concurrency/reliability validation.
-
-### Current Automated Regression Test
-
-Exactly ONE representative automated regression test currently runs: `backend/src/__tests__/pricing.regression.test.ts`.
-
-It strictly tests the deterministic business logic of the `PricingService.calculate` module (volumetric calculation, B2B/B2C logic, Zone logic, and Surcharges) from the source code.
-
-### Production Validation
-
-The deployed production system was manually verified after deployment. Validation included frontend deployment, backend deployment, production database connection, login/authentication, existing production data, dashboard/operational workflows, agent locations, and API communication.
-
-#### Agent Location Issue Resolution
-Following production deployment, agent latitude/longitude initially appeared as "Unknown" in the UI. Investigation showed `NULL` coordinates in the affected production records. Only the required latitude/longitude values were restored, without modifying unrelated production data. The location display was subsequently validated.
-
+- `VITE_API_URL` (Points to the deployed Render API)
 
 ## Production Email / Account Registration Limitation
 
@@ -350,7 +356,85 @@ Therefore, for the current demonstration/testing deployment, new account registr
 
 **`brainless1928@gmail.com`**
 
-This is a temporary deployment limitation and not a limitation of the application's authentication architecture. The application is designed to support normal email verification once a sending domain is verified.
+This is a temporary deployment limitation and not a limitation of the application's authentication architecture. 
+
+## Project Structure
+
+```text
+last-mile-delivery-tracker/
+├── .github/                # CI/CD Action workflows
+├── backend/
+│   ├── prisma/             # Schema, migrations, and seed scripts
+│   ├── src/
+│   │   ├── __tests__/      # 12 historical test files + current regression test
+│   │   ├── controllers/    # API Request processing
+│   │   ├── middlewares/    # Auth, RBAC, and error handlers
+│   │   ├── routes/         # Express endpoint definitions
+│   │   ├── services/       # Core business logic (Pricing, Dispatch)
+│   │   └── validators/     # Zod payload validation schemas
+│   └── package.json
+├── docs/                   # Extended Architecture documentation
+├── frontend/
+│   ├── src/
+│   │   ├── components/     # Reusable UI primitives
+│   │   ├── features/       # Role-specific application workflows
+│   │   ├── services/       # API integration client
+│   │   └── App.tsx         # Route and layout registry
+│   └── package.json
+└── README.md
+```
+
+## Screenshots & UI Evidence
+
+*Note: The actual UI implementation is documented in `docs/SCREENSHOTS.md`.*
+
+- **Landing Page:** Demonstrates the unauthenticated marketing/informational portal.
+- **Customer Dashboard & Order Creation:** Demonstrates dynamic quoting and volumetric input.
+- **Order Tracking Ledger:** Demonstrates the immutable TrackingHistory timeline.
+- **Admin Control Tower:** Demonstrates the high-density operational view of pending/active orders.
+- **Fleet Command (Agents):** Demonstrates the KPI strip and fleet metrics.
+- **Explainable Dispatch Modal:** Demonstrates the PostGIS distance ranking output.
+- **Agent Delivery Queue:** Demonstrates the mobile-friendly Agent UI for lifecycle updates.
+
+## Engineering Decisions & Trade-offs
+
+- **PostgreSQL vs NoSQL:** Chose relational PostgreSQL to enforce absolute ACID compliance when handling critical dispatch transactions. 
+- **PostGIS vs Application-Layer Distance:** Traded minor infrastructure complexity for massive spatial performance improvements; filtering agents natively in the DB prevents sending thousands of coordinates to Node.js for math processing.
+- **Prisma ORM:** Traded some complex query flexibility for unmatched type safety and schema validation across the stack.
+- **Transaction-Based Protection:** Chose strict row-locking during dispatch to eliminate race conditions, accepting slightly longer lock times over corrupted double-dispatch states.
+- **Snapshot Pricing:** Decoupled historic orders from live rate tables, sacrificing storage efficiency to guarantee operational immutability and financial auditing clarity.
+- **Test Environment Isolation:** Traded seamless E2E integration inside GitHub Actions for absolute production safety, requiring the E2E suite to be maintained historically rather than running against live databases.
+
+## Current Status
+
+| Component | Status |
+|---|---|
+| Frontend | Production |
+| Backend API | Production |
+| Database | Production |
+| Authentication | Validated |
+| Dispatch | Validated |
+| Tracking | Validated |
+| Pricing | Validated |
+| Agent Locations | Validated |
+| CI/CD | Active |
+| Automated Regression | Active |
+| Email Registration | Limited by Resend testing mode |
+
+## Known Limitations
+
+1. **Email Restriction:** Email verification currently uses Resend's testing configuration and is restricted to the owner's email address.
+2. **Regression Scope:** The current automated regression suite is intentionally small to avoid CI/CD database dependency issues.
+3. **Historical CI Executions:** The extensive historical database-dependent tests are not currently executed in CI.
+4. **Domain Verification:** A verified email domain is required for unrestricted public registration.
+
+## Future Improvements
+
+- Verify a dedicated email-sending domain with Resend to enable registration for arbitrary external email addresses.
+- Implement a broader automated regression suite and full E2E CI environment with isolated PostGIS containers.
+- Consider additional production observability and monitoring as usage grows.
+- Integration of a dedicated Redis instance for real-time location pub/sub.
+- Advanced routing optimizations (Traveling Salesperson Problem algorithms) for assigning multiple queued orders to a single agent.
 
 ## Documentation References
 
@@ -359,23 +443,3 @@ This is a temporary deployment limitation and not a limitation of the applicatio
 - [Architecture Details](docs/ARCHITECTURE.md)
 - [Requirements Compliance Matrix](docs/REQUIREMENTS.md)
 - [Demo Workflow & Screenshots](docs/SCREENSHOTS.md)
-
-## Known Limitations & Future Enhancements
-
-### Current Production Limitations
-
-1. Email verification currently uses Resend's testing configuration and is restricted to the Resend account email.
-2. A dedicated verified sending domain has not yet been configured.
-3. Public registration using arbitrary external email addresses therefore requires the future domain-verification step described below.
-4. Geocoding relies on a public, rate-limited Nominatim endpoint; in a heavy production scenario, this requires a commercial API key (e.g., Google Maps/Mapbox).
-5. Real-time agent location streams via WebSockets are not currently active; agent locations are updated via standard REST payloads.
-
-### Future Production Improvements
-
-- Verify a dedicated email-sending domain with Resend (e.g., configure DNS verification records).
-- Configure production sender address (e.g., `notifications@<verified-domain>` or `noreply@<verified-domain>`).
-- Enable registration for arbitrary external email addresses.
-- Continue monitoring email delivery and bounce rates.
-- Consider additional production observability and monitoring as usage grows.
-- Integration of a dedicated Redis instance for real-time location pub/sub.
-- Advanced routing optimizations (Traveling Salesperson Problem algorithms) for assigning multiple queued orders to a single agent.
