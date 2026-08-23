@@ -37,7 +37,6 @@ To thoroughly evaluate the technical depth of the Last Mile Delivery Tracker, fo
 
 ## Screenshot Repository
 
-*(Note: Currently waiting on final UI confirmation. Replace the placeholders below with actual imagery before presentation).*
 
 ### 1. Landing Page
 *Demonstrating unauthenticated marketing/informational portal.*
