@@ -5,7 +5,8 @@ import { Badge } from '../../components/ui/Badge';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { api } from '../../services/ApiClient';
-import { Map, Users, Settings, BarChart, MessageSquare, Box, PlusCircle, CreditCard, UserPlus, Edit2, AlertTriangle, MapPin, PowerOff, Power } from 'lucide-react';
+import { Map, Users, Settings, BarChart, MessageSquare, Box, PlusCircle, CreditCard, UserPlus, Edit2, AlertTriangle, MapPin, PowerOff, Power, Activity } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import styles from './AdminAgentsPage.module.css';
 
 const navItems = [
@@ -20,6 +21,7 @@ const navItems = [
 ];
 
 export const AdminAgentsPage = () => {
+  const navigate = useNavigate();
   const [agents, setAgents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -209,6 +211,9 @@ export const AdminAgentsPage = () => {
                         }}
                       >
                         <Edit2 size={14} /> Edit
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={() => navigate(`/admin/agents/${agent.id}/performance`)}>
+                        <Activity size={14} /> Performance
                       </Button>
                       <Button variant="danger" size="sm" onClick={() => handleDeactivate(agent.id)}>
                         <PowerOff size={14} /> Deactivate
