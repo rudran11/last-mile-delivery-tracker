@@ -208,25 +208,73 @@ When running `npm run test` in the `backend/` directory:
 
 **Status:** The current test suite focuses heavily on Admin Dispatch, Pricing constraints, and RBAC enforcement.
 
-## Deployment Architecture
+## Production Deployment
 
-The application is built to be deployed on modern cloud infrastructure:
+The application is deployed and operational on modern cloud infrastructure:
 
-```text
-GitHub
-   |
-   +--> Vercel
-   |     React/Vite Frontend
-   |
-   +--> Render
-         Node/Express Backend
-              |
-              +--> PostgreSQL + PostGIS (Supabase/Neon)
-```
+Browser
+↓
+Vercel Frontend
+↓
+Render Backend API
+↓
+Supabase PostgreSQL
+↓
+Resend Email Service
 
-- **Frontend** communicates with the backend over secure HTTPS.
-- **Backend** communicates with a dedicated production PostgreSQL database with the PostGIS extension enabled.
-- **Database Environments** strictly isolate development, CI/test, and production data.
+### Production URLs
+
+- **Frontend:** https://last-mile-delivery-tracker-rudran.vercel.app
+- **Backend:** https://last-mile-delivery-tracker-api-c4sl.onrender.com
+
+### Service Responsibilities
+
+- **Vercel:** Hosts the production React/Vite frontend.
+- **Render:** Hosts the Node.js/Express backend API. Handles authentication, business logic, API requests, rate limiting, and CORS.
+- **Supabase:** Hosts the production PostgreSQL database (with PostGIS) and stores all application data.
+- **Resend:** Handles transactional and verification email delivery.
+
+### Production Environment Variables
+
+Production secret values must be configured through Render and Vercel Environment Variables and must never be committed to Git.
+
+**Render Environment Variables:**
+- `DATABASE_URL`
+- `JWT_SECRET`
+- `FRONTEND_URL`
+- `NODE_ENV`
+- `RESEND_API_KEY`
+- `RESEND_FROM_EMAIL`
+
+**Vercel Environment Variables:**
+- `VITE_API_URL` (Points to the deployed Render backend API)
+
+### Production Deployment Checklist
+
+- [x] Frontend deployed to Vercel
+- [x] Backend deployed to Render
+- [x] Supabase PostgreSQL configured
+- [x] Production database populated with existing application data
+- [x] Frontend API URL configured
+- [x] Production CORS configured for the Vercel frontend
+- [x] Render proxy/rate-limit configuration handled
+- [x] Prisma production connection verified
+- [x] Production build verified
+- [x] Authentication/login tested
+- [x] Existing application data verified
+- [x] Resend API configured
+- [ ] Dedicated email-sending domain verified in Resend
+- [ ] Public registration with arbitrary external email addresses enabled after domain verification
+
+## Production Email / Account Registration Limitation
+
+For the current deployment, email verification is configured through Resend's testing environment. Resend restricts testing emails to the account owner's email address until a sending domain is verified.
+
+Therefore, for the current demonstration/testing deployment, new account registration should be performed using:
+
+**`brainless1928@gmail.com`**
+
+This is a temporary deployment limitation and not a limitation of the application's authentication architecture. The application is designed to support normal email verification once a sending domain is verified.
 
 ## Documentation References
 
@@ -238,10 +286,20 @@ GitHub
 
 ## Known Limitations & Future Enhancements
 
-**Current Limitations:**
-- Geocoding relies on a public, rate-limited Nominatim endpoint; in a heavy production scenario, this requires a commercial API key (e.g., Google Maps/Mapbox).
-- Real-time agent location streams via WebSockets are not currently active; agent locations are updated via standard REST payloads.
+### Current Production Limitations
 
-**Future Enhancements:**
+1. Email verification currently uses Resend's testing configuration and is restricted to the Resend account email.
+2. A dedicated verified sending domain has not yet been configured.
+3. Public registration using arbitrary external email addresses therefore requires the future domain-verification step described below.
+4. Geocoding relies on a public, rate-limited Nominatim endpoint; in a heavy production scenario, this requires a commercial API key (e.g., Google Maps/Mapbox).
+5. Real-time agent location streams via WebSockets are not currently active; agent locations are updated via standard REST payloads.
+
+### Future Production Improvements
+
+- Verify a dedicated email-sending domain with Resend (e.g., configure DNS verification records).
+- Configure production sender address (e.g., `notifications@<verified-domain>` or `noreply@<verified-domain>`).
+- Enable registration for arbitrary external email addresses.
+- Continue monitoring email delivery and bounce rates.
+- Consider additional production observability and monitoring as usage grows.
 - Integration of a dedicated Redis instance for real-time location pub/sub.
 - Advanced routing optimizations (Traveling Salesperson Problem algorithms) for assigning multiple queued orders to a single agent.
