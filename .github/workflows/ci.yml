@@ -1,0 +1,70 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: delivery_tracker_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL_TEST: postgresql://user:password@localhost:5432/delivery_tracker_test
+      JWT_SECRET: test_ci_jwt_secret_12345
+      PORT: 5000
+      NODE_ENV: test
+      USE_MOCK_EMAIL: true
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: |
+          frontend/package-lock.json
+          backend/package-lock.json
+
+    - name: Install Frontend Dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: Install Backend Dependencies
+      working-directory: ./backend
+      run: npm ci
+
+    - name: Frontend TypeScript Check
+      working-directory: ./frontend
+      run: npx tsc --noEmit
+
+    - name: Frontend Production Build
+      working-directory: ./frontend
+      run: npm run build
+
+    - name: Backend Build & Type Check
+      working-directory: ./backend
+      run: npx tsc -b
+
+    - name: Backend Tests
+      working-directory: ./backend
+      run: npm run test

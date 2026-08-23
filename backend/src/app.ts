@@ -6,7 +6,6 @@ import { errorHandler } from './middlewares/errorHandler';
 import routes from './routes';
 
 const app = express();
-console.log('APP DATABASE URL:', process.env.DATABASE_URL);
 
 app.use(helmet());
 app.use(cors({ origin: env.FRONTEND_URL }));

@@ -208,8 +208,29 @@ When running `npm run test` in the `backend/` directory:
 
 **Status:** The current test suite focuses heavily on Admin Dispatch, Pricing constraints, and RBAC enforcement.
 
+## Deployment Architecture
+
+The application is built to be deployed on modern cloud infrastructure:
+
+```text
+GitHub
+   |
+   +--> Vercel
+   |     React/Vite Frontend
+   |
+   +--> Render
+         Node/Express Backend
+              |
+              +--> PostgreSQL + PostGIS (Supabase/Neon)
+```
+
+- **Frontend** communicates with the backend over secure HTTPS.
+- **Backend** communicates with a dedicated production PostgreSQL database with the PostGIS extension enabled.
+- **Database Environments** strictly isolate development, CI/test, and production data.
+
 ## Documentation References
 
+- [Deployment Guide](docs/DEPLOYMENT.md)
 - [API Documentation](docs/API.md)
 - [Architecture Details](docs/ARCHITECTURE.md)
 - [Requirements Compliance Matrix](docs/REQUIREMENTS.md)
