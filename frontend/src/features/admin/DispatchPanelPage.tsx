@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
-import { Map, Layers, ClipboardList, Target, User, X, BarChart, MessageSquare, Box, PlusCircle, Settings, CreditCard , Users} from 'lucide-react';
+import { Map, Layers, ClipboardList, Target, User, X, BarChart, MessageSquare, Box, PlusCircle, Settings, CreditCard , Users, MapPin } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { api } from '../../services/ApiClient';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table';
@@ -8,6 +8,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { useNavigate } from 'react-router-dom';
 
 const navItems = [
   { label: 'Control Tower', href: '/admin', icon: <BarChart size={20} /> },
@@ -21,6 +22,7 @@ const navItems = [
 ];
 
 const DispatchPanelPage = () => {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<any[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -199,6 +201,14 @@ const DispatchPanelPage = () => {
                           >
                             <User size={14} style={{ marginRight: '4px' }} />
                             {order.status === 'PENDING' ? 'Manual Assign' : 'Reassign'}
+                          </Button>
+                          <Button 
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => navigate(`/admin/orders/${order.id}/dispatch`)}
+                          >
+                            <MapPin size={14} style={{ marginRight: '4px' }} />
+                            Map
                           </Button>
                         </div>
                       </TableCell>

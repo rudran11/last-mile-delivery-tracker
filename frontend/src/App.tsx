@@ -29,6 +29,7 @@ import AdminRateCardsPage from './features/admin/AdminRateCardsPage';
 import AdminCreateOrderPage from './features/admin/AdminCreateOrderPage';
 import { AdminAgentsPage } from './features/admin/AdminAgentsPage';
 import { AgentPerformancePage } from './features/admin/AgentPerformancePage';
+import { DispatchExplanationPage } from './features/admin/DispatchExplanationPage';
 import { AdminNotificationsPage } from './features/admin/AdminNotificationsPage';
 
 const App = () => {
@@ -72,6 +73,7 @@ const App = () => {
           <Route path="/admin/agents" element={<AdminAgentsPage />} />
           <Route path="/admin/agents/:id/performance" element={<AgentPerformancePage />} />
           <Route path="/admin/dispatch" element={<DispatchPanelPage />} />
+          <Route path="/admin/orders/:id/dispatch" element={<DispatchExplanationPage />} />
           <Route path="/admin/orders" element={<AdminOrderLedgerPage />} />
           <Route path="/admin/orders/create" element={<AdminCreateOrderPage />} />
           <Route path="/admin/configuration/zones" element={<AdminConfigurationPage />} />

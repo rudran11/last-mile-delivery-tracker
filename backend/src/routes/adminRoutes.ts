@@ -5,6 +5,7 @@ import { AdminConfigurationController } from '../controllers/AdminConfigurationC
 import { NotificationController } from '../controllers/NotificationController';
 import { AdminAgentController } from '../controllers/AdminAgentController';
 import { AdminPerformanceController } from '../controllers/AdminPerformanceController';
+import { AdminDispatchController } from '../controllers/AdminDispatchController';
 
 const router = Router();
 
@@ -30,6 +31,7 @@ router.put('/rates/:id', AdminConfigurationController.updateRateConfiguration);
 // Orders
 router.post('/orders', AdminConfigurationController.createOrder);
 router.post('/orders/:id/override-status', AdminConfigurationController.overrideOrderStatus);
+router.get('/orders/:id/dispatch-explanation', AdminDispatchController.getDispatchExplanation);
 
 // Notifications
 router.get('/notifications', NotificationController.getNotifications);

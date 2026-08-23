@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
-import { Map, Layers, ClipboardList, Settings, MoreHorizontal, BarChart, MessageSquare, Box, PlusCircle, CreditCard , Users} from 'lucide-react';
+import { Map, Layers, ClipboardList, Settings, MoreHorizontal, BarChart, MessageSquare, Box, PlusCircle, CreditCard , Users, MapPin } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { api } from '../../services/ApiClient';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table';
@@ -181,9 +181,15 @@ const AdminOrderLedgerPage = () => {
                       <TableCell>₹{order.calculatedCharge}</TableCell>
                       <TableCell>{getStatusBadge(order.status)}</TableCell>
                       <TableCell>
-                        <Button variant="ghost" onClick={() => handleOverrideStatus(order.id)}>
-                          Override
-                        </Button>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <Button size="sm" variant="ghost" onClick={() => handleOverrideStatus(order.id)}>
+                            Override
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => navigate(`/admin/orders/${order.id}/dispatch`)}>
+                            <MapPin size={14} style={{ marginRight: '4px' }} />
+                            Map
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
