@@ -16,18 +16,31 @@
   top: 0;
   left: 0;
   right: 0;
-  z-index: var(--z-sticky);
+  z-index: 40;
 }
 
 .menuButton {
   color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-fast);
+}
+.menuButton:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-weight: 700;
+  font-weight: 600;
   font-size: var(--text-lg);
   color: var(--color-text-primary);
   letter-spacing: -0.025em;
@@ -50,7 +63,7 @@
   display: flex;
   flex-direction: column;
   transition: transform var(--transition-fast);
-  z-index: var(--z-modal);
+  z-index: 50;
 }
 
 .sidebarOpen {
@@ -59,7 +72,9 @@
 
 .sidebarHeader {
   padding: var(--space-6);
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border-subtle);
+  display: flex;
+  align-items: center;
 }
 
 .nav {
@@ -83,21 +98,25 @@
   transition: all var(--transition-fast);
   width: 100%;
   text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
 }
 
 .navItem:hover {
-  background-color: var(--color-bg);
+  background-color: var(--color-surface-hover);
   color: var(--color-text-primary);
 }
 
 .navItemActive {
   background-color: var(--color-primary-light);
-  color: var(--color-primary-hover);
+  color: var(--color-primary);
+  border: 1px solid rgba(37, 99, 235, 0.2);
 }
 
 .sidebarFooter {
   padding: var(--space-4);
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-border-subtle);
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -111,14 +130,15 @@
 }
 
 .avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background-color: var(--color-bg);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface-elevated);
+  border: 1px solid var(--color-border-strong);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
 }
 
 .userDetails {
@@ -157,20 +177,23 @@
   flex: 1;
   padding-top: 60px; /* space for mobile header */
   width: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .content {
   padding: var(--space-4);
-  max-width: 1200px;
+  max-width: var(--layout-max-width);
   margin: 0 auto;
   width: 100%;
+  flex: 1;
 }
 
 .overlay {
   position: fixed;
   inset: 0;
-  background-color: var(--color-overlay);
-  z-index: var(--z-overlay);
+  background-color: rgba(10, 15, 28, 0.8);
+  z-index: 45;
   backdrop-filter: blur(2px);
 }
 

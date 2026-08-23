@@ -1,12 +1,12 @@
 .skeleton {
-  background-color: var(--color-border);
+  background-color: var(--color-surface-elevated);
   border-radius: var(--radius-md);
   animation: shimmer 1.5s infinite linear;
   background: linear-gradient(
     90deg,
-    var(--color-border) 0%,
-    rgba(226, 232, 240, 0.5) 50%,
-    var(--color-border) 100%
+    var(--color-surface-elevated) 0%,
+    var(--color-surface-hover) 50%,
+    var(--color-surface-elevated) 100%
   );
   background-size: 200% 100%;
 }

@@ -6,7 +6,7 @@
   padding: var(--space-12) var(--space-6);
   text-align: center;
   border-radius: var(--radius-lg);
-  border: 1px dashed var(--color-border);
+  border: 1px dashed var(--color-border-strong);
   background-color: var(--color-surface);
 }
 
@@ -16,10 +16,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--color-bg);
-  width: 3rem;
-  height: 3rem;
-  border-radius: 50%;
+  background-color: var(--color-surface-elevated);
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: var(--radius-full);
 }
 
 .title {
