@@ -54,7 +54,7 @@ const STATE_TO_ZONE_MAP: Record<string, string> = {
 };
 
 export class OrderService {
-  private static async resolveLocation(lat: number, lng: number, fallbackPincode?: string) {
+  public static async resolveLocation(lat: number, lng: number, fallbackPincode?: string) {
     let resolvedState = '';
     let resolvedCountryCode = '';
     let resolvedPincode = fallbackPincode;

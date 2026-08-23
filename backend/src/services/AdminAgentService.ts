@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { CreateAgentInput, UpdateAgentInput } from '../validators/agentValidators';
 import { ConflictError, NotFoundError } from '../errors/DomainError';
+import { OrderService } from './OrderService';
 
 const prisma = new PrismaClient();
 
@@ -16,8 +17,8 @@ export class AdminAgentService {
         isAvailable: boolean;
         isActive: boolean;
         lng: number | null;
-        lat: number | null;
         zoneName: string | null;
+        zoneId: string | null;
       }>
     >`
       SELECT 
@@ -28,6 +29,7 @@ export class AdminAgentService {
         a."isAvailable", 
         a."isActive",
         z.name as "zoneName",
+        z.id as "zoneId",
         ST_X(a."currentLocation"::geometry) as lng, 
         ST_Y(a."currentLocation"::geometry) as lat
       FROM "AgentProfile" a
@@ -50,6 +52,8 @@ export class AdminAgentService {
 
     const passwordHash = await bcrypt.hash(data.password, 10);
 
+    const locationInfo = await OrderService.resolveLocation(data.lat, data.lng).catch(() => null);
+
     const result = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
@@ -66,6 +70,7 @@ export class AdminAgentService {
           userId: user.id,
           isAvailable: data.isAvailable,
           isActive: true,
+          currentZoneId: locationInfo ? locationInfo.zoneId : null,
         },
       });
 
@@ -97,9 +102,14 @@ export class AdminAgentService {
         data: { name: data.name }
       });
 
+      const updateData: any = { isAvailable: data.isAvailable };
+      if (data.zoneId !== undefined) {
+        updateData.currentZoneId = data.zoneId;
+      }
+
       const updatedProfile = await tx.agentProfile.update({
         where: { id },
-        data: { isAvailable: data.isAvailable }
+        data: updateData
       });
 
       await tx.$executeRaw`

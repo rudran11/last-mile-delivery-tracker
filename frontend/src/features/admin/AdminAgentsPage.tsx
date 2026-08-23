@@ -24,24 +24,35 @@ export const AdminAgentsPage = () => {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<any>(null);
+  const [zones, setZones] = useState<any[]>([]);
   
   // Form State
   const [formData, setFormData] = useState({
-    name: '', email: '', password: '', lat: 0, lng: 0, isAvailable: true
+    name: '', email: '', password: '', lat: 0, lng: 0, isAvailable: true, zoneId: ''
   });
 
   const loadData = async () => {
     try {
-      const data: any = await api.get('/admin/agents');
-      if (Array.isArray(data)) {
-        setAgents(data);
-      } else if (data && Array.isArray(data.data)) {
-        setAgents(data.data);
+      const [agentsData, zonesData]: any = await Promise.all([
+        api.get('/admin/agents'),
+        api.get('/admin/zones')
+      ]);
+      
+      if (Array.isArray(agentsData)) {
+        setAgents(agentsData);
+      } else if (agentsData && Array.isArray(agentsData.data)) {
+        setAgents(agentsData.data);
       } else {
         setAgents([]);
       }
+
+      if (Array.isArray(zonesData)) {
+        setZones(zonesData);
+      } else if (zonesData && Array.isArray(zonesData.data)) {
+        setZones(zonesData.data);
+      }
     } catch (err) {
-      console.error('Error fetching agents:', err);
+      console.error('Error fetching data:', err);
     } finally {
       setLoading(false);
     }
@@ -59,7 +70,8 @@ export const AdminAgentsPage = () => {
           name: formData.name,
           lat: Number(formData.lat),
           lng: Number(formData.lng),
-          isAvailable: formData.isAvailable
+          isAvailable: formData.isAvailable,
+          zoneId: formData.zoneId || null
         });
       } else {
         await api.post('/admin/agents', {
@@ -137,7 +149,7 @@ export const AdminAgentsPage = () => {
           variant="primary" 
           onClick={() => {
             setEditingAgent(null);
-            setFormData({ name: '', email: '', password: '', lat: 0, lng: 0, isAvailable: true });
+            setFormData({ name: '', email: '', password: '', lat: 0, lng: 0, isAvailable: true, zoneId: '' });
             setIsModalOpen(true);
           }}
         >
@@ -190,7 +202,8 @@ export const AdminAgentsPage = () => {
                             password: '',
                             lat: agent.lat || 0,
                             lng: agent.lng || 0,
-                            isAvailable: agent.isAvailable
+                            isAvailable: agent.isAvailable,
+                            zoneId: agent.zoneId || ''
                           });
                           setIsModalOpen(true);
                         }}
@@ -269,6 +282,22 @@ export const AdminAgentsPage = () => {
                   />
                 </div>
                 
+                {editingAgent && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '0.875rem', fontWeight: 500 }}>Current Zone</label>
+                    <select 
+                      value={formData.zoneId}
+                      onChange={(e) => setFormData({...formData, zoneId: e.target.value})}
+                      style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-secondary)', color: 'var(--color-text)' }}
+                    >
+                      <option value="">-- Unassigned / Auto Detect --</option>
+                      {zones.map((zone: any) => (
+                        <option key={zone.id} value={zone.id}>{zone.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
                   <input 
                     type="checkbox" 

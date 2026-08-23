@@ -16,6 +16,7 @@ export const updateAgentSchema = z.object({
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
   isAvailable: z.boolean(),
+  zoneId: z.string().uuid().nullable().optional(),
 }).strict();
 
 export type UpdateAgentInput = z.infer<typeof updateAgentSchema>;
