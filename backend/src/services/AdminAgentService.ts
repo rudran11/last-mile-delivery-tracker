@@ -17,6 +17,7 @@ export class AdminAgentService {
         isAvailable: boolean;
         isActive: boolean;
         lng: number | null;
+        lat: number | null;
         zoneName: string | null;
         zoneId: string | null;
       }>
@@ -38,7 +39,14 @@ export class AdminAgentService {
       WHERE u."isActive" = true AND a."isActive" = true
       ORDER BY u.email ASC;
     `;
-    return agents;
+    
+    return agents.map(agent => {
+      const { lat, lng, ...rest } = agent;
+      return {
+        ...rest,
+        location: (lat !== null && lng !== null) ? { lat, lng } : null
+      };
+    });
   }
 
   static async createAgent(data: CreateAgentInput) {
