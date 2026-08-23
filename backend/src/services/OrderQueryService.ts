@@ -28,13 +28,13 @@ export class OrderQueryService {
 
       return await prisma.order.findMany({
         where: whereClause,
-        include: { pricingSnapshot: true, trackingHistory: true, deliveryAttempts: true },
+        include: { pricingSnapshot: true, trackingHistory: true, deliveryAttempts: true, customerFeedback: true },
         orderBy: { createdAt: 'desc' }
       });
     } else if (role === Role.CUSTOMER) {
       return await prisma.order.findMany({
         where: { customerId: userId },
-        include: { pricingSnapshot: true, trackingHistory: true, deliveryAttempts: true },
+        include: { pricingSnapshot: true, trackingHistory: true, deliveryAttempts: true, customerFeedback: true },
         orderBy: { createdAt: 'desc' }
       });
     } else if (role === Role.AGENT) {
@@ -46,7 +46,7 @@ export class OrderQueryService {
             some: { agentId: agentProfile.id }
           }
         },
-        include: { pricingSnapshot: true, trackingHistory: true, deliveryAttempts: true }
+        include: { pricingSnapshot: true, trackingHistory: true, deliveryAttempts: true, customerFeedback: true }
       });
     }
     throw new ForbiddenError('Invalid role');
@@ -55,7 +55,7 @@ export class OrderQueryService {
   static async getOrderById(orderId: string, userId: string, role: Role) {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      include: { pricingSnapshot: true, trackingHistory: true, deliveryAttempts: true }
+      include: { pricingSnapshot: true, trackingHistory: true, deliveryAttempts: true, customerFeedback: true }
     });
 
     if (!order) throw new NotFoundError('Order not found');

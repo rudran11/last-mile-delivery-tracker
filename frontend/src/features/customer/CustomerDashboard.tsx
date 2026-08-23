@@ -9,6 +9,7 @@ import { Button } from '../../components/ui/Button';
 import { useNavigate } from 'react-router-dom';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { FeedbackBanner } from '../../components/domain/FeedbackBanner';
 
 const navItems = [
   { label: 'Dashboard', href: '/customer', icon: <LayoutDashboard size={20} /> },
@@ -18,22 +19,41 @@ const navItems = [
 
 const CustomerDashboard = () => {
   const [orders, setOrders] = useState<any[]>([]);
+  const [eligibleFeedbackOrderId, setEligibleFeedbackOrderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const data = await api.get<any[]>('/orders');
-        setOrders(data);
+        const [ordersData, feedbackData] = await Promise.all([
+          api.get<any[]>('/orders'),
+          api.get<any>('/customer/feedback/eligible').catch(() => null)
+        ]);
+        setOrders(ordersData);
+        
+        if (feedbackData?.eligibleOrder) {
+          const skipKey = `feedback_skip_${feedbackData.eligibleOrder.id}`;
+          const skippedAt = localStorage.getItem(skipKey);
+          if (!skippedAt || (Date.now() - parseInt(skippedAt, 10) > 24 * 60 * 60 * 1000)) {
+            setEligibleFeedbackOrderId(feedbackData.eligibleOrder.id);
+          }
+        }
       } catch (error) {
-        console.error('Failed to load orders', error);
+        console.error('Failed to load dashboard data', error);
       } finally {
         setIsLoading(false);
       }
     };
     fetchOrders();
   }, []);
+
+  const handleFeedbackSkip = () => {
+    if (eligibleFeedbackOrderId) {
+      localStorage.setItem(`feedback_skip_${eligibleFeedbackOrderId}`, Date.now().toString());
+      setEligibleFeedbackOrderId(null);
+    }
+  };
 
   const activeOrders = orders.filter(o => !['DELIVERED', 'FAILED'].includes(o.status));
   const recentOrders = orders.slice(0, 5);
@@ -64,6 +84,14 @@ const CustomerDashboard = () => {
             New Order
           </Button>
         </header>
+
+        {eligibleFeedbackOrderId && (
+          <FeedbackBanner 
+            orderId={eligibleFeedbackOrderId} 
+            onSuccess={() => setEligibleFeedbackOrderId(null)} 
+            onSkip={handleFeedbackSkip} 
+          />
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
           <Card>

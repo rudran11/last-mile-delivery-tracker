@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { format } from 'date-fns';
+import { FeedbackBanner } from '../../components/domain/FeedbackBanner';
 
 const navItems = [
   { label: 'Dashboard', href: '/customer', icon: <LayoutDashboard size={20} /> },
@@ -123,6 +124,19 @@ const OrderDetailsPage = () => {
             )}
           </div>
         </header>
+
+        {order?.status === 'DELIVERED' && !order.customerFeedback && (
+          <FeedbackBanner 
+            orderId={order.id} 
+            onSuccess={() => {
+              setOrder({ ...order, customerFeedback: {} });
+            }} 
+            onSkip={() => {
+              // Optionally handle local skip, or just remove banner
+              setOrder({ ...order, customerFeedback: { skipped: true } });
+            }} 
+          />
+        )}
 
         {isLoading ? (
           <div>

@@ -84,6 +84,7 @@ model User {
   orders          Order[]
   agentProfile    AgentProfile?
   trackingHistory TrackingHistory[]
+  customerFeedbacks CustomerFeedback[]
 }
 
 model AgentProfile {
@@ -99,6 +100,7 @@ model AgentProfile {
   updatedAt      DateTime                                @updatedAt
 
   deliveryAttempts DeliveryAttempt[]
+  customerFeedbacks CustomerFeedback[]
 
   @@index([isAvailable, currentZoneId])
 }
@@ -183,6 +185,7 @@ model Order {
   deliveryAttempts DeliveryAttempt[]
   trackingHistory  TrackingHistory[]
   notifications    Notification[]
+  customerFeedback CustomerFeedback?
 
   @@index([customerId])
   @@index([status])
@@ -268,5 +271,22 @@ model PendingRegistration {
   updatedAt    DateTime  @updatedAt
 
   @@index([email])
+}
+
+model CustomerFeedback {
+  id         String   @id @default(uuid())
+  orderId    String   @unique
+  order      Order    @relation(fields: [orderId], references: [id])
+  customerId String
+  customer   User     @relation(fields: [customerId], references: [id])
+  agentId    String
+  agent      AgentProfile @relation(fields: [agentId], references: [id])
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([agentId])
 }
 
