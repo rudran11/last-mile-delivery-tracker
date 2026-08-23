@@ -266,15 +266,35 @@ Production secret values must be configured through Render and Vercel Environmen
 - [ ] Dedicated email-sending domain verified in Resend
 - [ ] Public registration with arbitrary external email addresses enabled after domain verification
 
-## Production Email / Account Registration Limitation
+## CI/CD
 
-For the current deployment, email verification is configured through Resend's testing environment. Resend restricts testing emails to the account owner's email address until a sending domain is verified.
+Every push to `main` and every Pull Request targeting `main` runs automated validation through GitHub Actions.
 
-Therefore, for the current demonstration/testing deployment, new account registration should be performed using:
+Checks include:
+- Backend dependency installation
+- Prisma Client generation
+- Backend TypeScript/build
+- Backend automated regression test
+- Frontend dependency installation
+- Frontend linting
+- Frontend TypeScript validation
+- Frontend production build
 
-**`brainless1928@gmail.com`**
+The CI pipeline uses an isolated test environment and does not modify the production Supabase database.
 
-This is a temporary deployment limitation and not a limitation of the application's authentication architecture. The application is designed to support normal email verification once a sending domain is verified.
+### Testing
+
+The system underwent extensive validation during development, with 100+ test scenarios/checks executed across core application workflows and edge cases before the final production database cleanup and migration.
+
+These historical validation scenarios are documented as development/testing history and are not represented as the current automated regression-test count.
+
+The current repository maintains one representative automated regression test, which is executed locally and through GitHub Actions CI.
+
+Production functionality was also manually validated after deployment.
+
+Registration/email-verification testing for arbitrary external recipients is currently limited by the Resend testing configuration. Broader registration testing can be introduced after a verified email-sending domain is configured.
+
+*(Note: For the current demonstration/testing deployment, new account registration should be performed using: `brainless1928@gmail.com`)*
 
 ## Documentation References
 
