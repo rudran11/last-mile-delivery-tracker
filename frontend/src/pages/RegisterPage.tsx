@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../services/ApiClient';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../components/ui/Card';
 import { Package, AlertCircle, CheckCircle, Mail } from 'lucide-react';
-import styles from './LoginPage.module.css';
+import { LogisticsNetworkBackground } from '../components/public/LogisticsNetworkBackground';
+import styles from './LoginPage.module.css'; // Reuse login page layout
 
 const RegisterPage = () => {
   const [step, setStep] = useState<1 | 2>(1);
@@ -96,45 +96,48 @@ const RegisterPage = () => {
     }
   };
 
-  if (success) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.brand}>
-          <Package className={styles.logoIcon} />
-          <span>DeliveryTracker</span>
-        </div>
-        <Card className={styles.card}>
-          <CardContent style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-            <CheckCircle size={48} color="var(--success)" style={{ margin: '0 auto 1rem auto' }} />
-            <h2 style={{ marginBottom: '0.5rem' }}>Email Verified Successfully</h2>
-            <p style={{ color: 'var(--text-secondary)' }}>You are being redirected to login...</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   const maskedEmail = email.replace(/(.{2})(.*)(?=@)/,
     (gp1, gp2, gp3) => gp2 + Array(gp3.length).join('*')
   );
 
   return (
     <div className={styles.container}>
-      <div className={styles.brand}>
-        <Package className={styles.logoIcon} />
-        <span>DeliveryTracker</span>
+      <div className={styles.leftPanel}>
+        <div className={styles.leftContent}>
+          <div className={styles.brand} onClick={() => navigate('/')}>
+            <Package className={styles.logoIcon} />
+            <span>DeliveryTracker</span>
+          </div>
+          
+          <div className={styles.heroText}>
+            <h2>Join the next generation of logistics.</h2>
+            <p>Create an account to experience geospatial dispatch, real-time lifecycle tracking, and comprehensive operational analytics.</p>
+          </div>
+        </div>
+        <LogisticsNetworkBackground />
       </div>
-      
-      <Card className={styles.card}>
-        {step === 1 ? (
-          <>
-            <CardHeader>
-              <CardTitle>Create an account</CardTitle>
-              <p className={styles.subtitle}>Sign up to start shipping</p>
-            </CardHeader>
-            
-            <form onSubmit={handleRegisterInit}>
-              <CardContent className={styles.content}>
+
+      <div className={styles.rightPanel}>
+        <div className={styles.formContainer}>
+          <div className={styles.mobileBrand} onClick={() => navigate('/')}>
+            <Package className={styles.logoIcon} />
+            <span>DeliveryTracker</span>
+          </div>
+
+          {success ? (
+            <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+              <CheckCircle size={48} color="var(--color-success)" style={{ margin: '0 auto 1rem auto' }} />
+              <h2 className={styles.formTitle}>Email Verified</h2>
+              <p className={styles.formSubtitle}>Redirecting to login...</p>
+            </div>
+          ) : step === 1 ? (
+            <>
+              <div className={styles.formHeader}>
+                <h1 className={styles.formTitle}>Create an account</h1>
+                <p className={styles.formSubtitle}>Sign up to start shipping</p>
+              </div>
+              
+              <form onSubmit={handleRegisterInit} className={styles.form}>
                 {error && (
                   <div className={styles.errorAlert}>
                     <AlertCircle size={16} />
@@ -179,35 +182,44 @@ const RegisterPage = () => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   disabled={isLoading}
                 />
-              </CardContent>
-              
-              <CardFooter className={styles.footer}>
-                <Button type="submit" variant="primary" style={{ width: '100%' }} disabled={isLoading}>
-                  {isLoading ? 'Sending Verification...' : 'Create Account'}
+                
+                <Button 
+                  type="submit" 
+                  className={styles.submitBtn} 
+                  isLoading={isLoading}
+                  size="lg"
+                >
+                  Create Account
                 </Button>
-                <p className={styles.registerLink}>
-                  Already have an account? <a href="/login" onClick={(e) => { e.preventDefault(); navigate('/login'); }}>Sign in</a>
-                </p>
-              </CardFooter>
-            </form>
-          </>
-        ) : (
-          <>
-            <CardHeader style={{ textAlign: 'center' }}>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-                <div style={{ backgroundColor: 'var(--surface-active)', padding: '1rem', borderRadius: '50%' }}>
-                  <Mail size={32} color="var(--primary)" />
+                
+                <div className={styles.signupPrompt}>
+                  <span className={styles.signupText}>Already have an account?</span>
+                  <a 
+                    href="/login" 
+                    className={styles.signupLink}
+                    onClick={(e) => { e.preventDefault(); navigate('/login'); }}
+                  >
+                    Sign in
+                  </a>
                 </div>
+              </form>
+            </>
+          ) : (
+            <>
+              <div className={styles.formHeader} style={{ textAlign: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', margin: '1rem 0' }}>
+                  <div style={{ backgroundColor: 'var(--color-primary-light)', padding: '1rem', borderRadius: '50%' }}>
+                    <Mail size={32} color="var(--color-primary)" />
+                  </div>
+                </div>
+                <h1 className={styles.formTitle}>Check your email</h1>
+                <p className={styles.formSubtitle}>
+                  We've sent a 6-digit verification code to<br/>
+                  <strong>{maskedEmail}</strong>
+                </p>
               </div>
-              <CardTitle>Check your email</CardTitle>
-              <p className={styles.subtitle}>
-                We've sent a 6-digit verification code to<br/>
-                <strong>{maskedEmail}</strong>
-              </p>
-            </CardHeader>
-            
-            <form onSubmit={handleVerifyOtp}>
-              <CardContent className={styles.content}>
+              
+              <form onSubmit={handleVerifyOtp} className={styles.form}>
                 {error && (
                   <div className={styles.errorAlert}>
                     <AlertCircle size={16} />
@@ -226,36 +238,38 @@ const RegisterPage = () => {
                   disabled={isLoading}
                   style={{ textAlign: 'center', fontSize: '1.5rem', letterSpacing: '0.25em' }}
                 />
-              </CardContent>
-              
-              <CardFooter className={styles.footer} style={{ flexDirection: 'column', gap: '1rem' }}>
-                <Button type="submit" variant="primary" style={{ width: '100%' }} disabled={isLoading || otp.length !== 6}>
-                  {isLoading ? 'Verifying...' : 'Verify Email'}
+                
+                <Button 
+                  type="submit" 
+                  className={styles.submitBtn} 
+                  isLoading={isLoading}
+                  disabled={isLoading || otp.length !== 6}
+                  size="lg"
+                >
+                  Verify Email
                 </Button>
                 
-                <div style={{ textAlign: 'center', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                  Didn't receive the code?{' '}
+                <div className={styles.signupPrompt}>
+                  <span className={styles.signupText}>Didn't receive the code?</span>
                   {cooldown > 0 ? (
-                    <span>Resend in {cooldown}s</span>
+                    <span style={{ fontWeight: 500, color: 'var(--color-text-secondary)' }}>Resend in {cooldown}s</span>
                   ) : (
                     <button 
                       type="button" 
                       onClick={handleResendOtp}
                       disabled={isLoading}
-                      style={{ 
-                        background: 'none', border: 'none', color: 'var(--primary)', 
-                        fontWeight: '500', cursor: 'pointer', padding: 0 
-                      }}
+                      className={styles.signupLink}
+                      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 'inherit' }}
                     >
                       Click to resend
                     </button>
                   )}
                 </div>
-              </CardFooter>
-            </form>
-          </>
-        )}
-      </Card>
+              </form>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

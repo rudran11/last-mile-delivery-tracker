@@ -4,8 +4,8 @@ import { useAuthStore } from '../store/authStore';
 import { api } from '../services/ApiClient';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../components/ui/Card';
 import { Package, AlertCircle } from 'lucide-react';
+import { LogisticsNetworkBackground } from '../components/public/LogisticsNetworkBackground';
 import styles from './LoginPage.module.css';
 
 const LoginPage = () => {
@@ -48,19 +48,52 @@ const LoginPage = () => {
 
   return (
     <div className={styles.container}>
-      <div className={styles.brand}>
-        <Package className={styles.logoIcon} />
-        <span>DeliveryTracker</span>
+      <div className={styles.leftPanel}>
+        <div className={styles.leftContent}>
+          <div className={styles.brand} onClick={() => navigate('/')}>
+            <Package className={styles.logoIcon} />
+            <span>DeliveryTracker</span>
+          </div>
+          
+          <div className={styles.heroText}>
+            <h2>Intelligent logistics starts here.</h2>
+            <p>Geospatial dispatch, real-time lifecycle tracking, and comprehensive operational analytics in one unified platform.</p>
+          </div>
+          
+          <div className={styles.testAccounts}>
+            <p className={styles.testAccountsTitle}>Test Accounts</p>
+            <div className={styles.testAccountGrid}>
+              <div className={styles.testAccountItem}>
+                <span className={styles.testRole}>Admin</span>
+                <span className={styles.testCred}>admin@unthinkable.co / admin123</span>
+              </div>
+              <div className={styles.testAccountItem}>
+                <span className={styles.testRole}>Customer</span>
+                <span className={styles.testCred}>customer@unthinkable.co / customer123</span>
+              </div>
+              <div className={styles.testAccountItem}>
+                <span className={styles.testRole}>Agent</span>
+                <span className={styles.testCred}>agent1@unthinkable.co / agent123</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <LogisticsNetworkBackground />
       </div>
-      
-      <Card className={styles.card}>
-        <CardHeader>
-          <CardTitle>Sign in to your account</CardTitle>
-          <p className={styles.subtitle}>Enter your credentials to access the platform</p>
-        </CardHeader>
-        
-        <form onSubmit={handleLogin}>
-          <CardContent className={styles.content}>
+
+      <div className={styles.rightPanel}>
+        <div className={styles.formContainer}>
+          <div className={styles.mobileBrand} onClick={() => navigate('/')}>
+            <Package className={styles.logoIcon} />
+            <span>DeliveryTracker</span>
+          </div>
+
+          <div className={styles.formHeader}>
+            <h1 className={styles.formTitle}>Welcome back</h1>
+            <p className={styles.formSubtitle}>Sign in to your account to continue</p>
+          </div>
+          
+          <form onSubmit={handleLogin} className={styles.form}>
             {error && (
               <div className={styles.errorAlert}>
                 <AlertCircle size={16} />
@@ -76,6 +109,7 @@ const LoginPage = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={isLoading}
+              className={styles.inputField}
             />
             
             <Input
@@ -86,39 +120,30 @@ const LoginPage = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading}
+              className={styles.inputField}
             />
-          </CardContent>
-          
-          <CardFooter className={styles.footer} style={{ flexDirection: 'column', gap: '1rem', alignItems: 'stretch' }}>
+            
             <Button 
               type="submit" 
               className={styles.submitBtn} 
               isLoading={isLoading}
+              size="lg"
             >
               Sign in
             </Button>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
-              <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Don't have an account?</span>
-              <Button 
-                variant="outline" 
-                type="button"
+            
+            <div className={styles.signupPrompt}>
+              <span className={styles.signupText}>Don't have an account?</span>
+              <a 
+                href="/register" 
+                className={styles.signupLink}
                 onClick={(e) => { e.preventDefault(); navigate('/register'); }}
-                style={{ width: '100%' }}
               >
                 Sign up
-              </Button>
+              </a>
             </div>
-          </CardFooter>
-        </form>
-      </Card>
-      
-      <div className={styles.testAccounts}>
-        <p>Test Accounts:</p>
-        <ul>
-          <li>Admin: admin@unthinkable.co (admin123)</li>
-          <li>Customer: customer@unthinkable.co (customer123)</li>
-          <li>Agent: agent1@unthinkable.co (agent123)</li>
-        </ul>
+          </form>
+        </div>
       </div>
     </div>
   );
