@@ -282,7 +282,7 @@ Checks include:
 
 The CI pipeline uses an isolated test environment and does not modify the production Supabase database.
 
-### Testing
+## Testing
 
 The system underwent extensive validation during development, with 100+ test scenarios/checks executed across core application workflows and edge cases before the final production database cleanup and migration.
 
@@ -292,9 +292,16 @@ The current repository maintains one representative automated regression test, w
 
 Production functionality was also manually validated after deployment.
 
-Registration/email-verification testing for arbitrary external recipients is currently limited by the Resend testing configuration. Broader registration testing can be introduced after a verified email-sending domain is configured.
 
-*(Note: For the current demonstration/testing deployment, new account registration should be performed using: `brainless1928@gmail.com`)*
+## Production Email / Account Registration Limitation
+
+For the current deployment, email verification is configured through Resend's testing environment. Resend restricts testing emails to the account owner's email address until a sending domain is verified.
+
+Therefore, for the current demonstration/testing deployment, new account registration should be performed using:
+
+**`brainless1928@gmail.com`**
+
+This is a temporary deployment limitation and not a limitation of the application's authentication architecture. The application is designed to support normal email verification once a sending domain is verified.
 
 ## Documentation References
 
