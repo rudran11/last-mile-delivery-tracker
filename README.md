@@ -26,6 +26,23 @@ The Last Mile Delivery Tracker is designed to solve complex operational challeng
 | Agent Performance | Implemented | Fleet KPI tracking based on delivery success and feedback. |
 | Explainable Dispatch | Implemented | Real-time breakdown of why an agent was/wasn't selected. |
 
+## Value-Added Features Beyond Core Requirements
+
+Beyond the core functional requirements, the platform implements several additional capabilities to improve operational usefulness, user experience, security, and real-world logistics applicability.
+
+| Value-Added Feature | What We Implemented | Practical Value |
+|---|---|---|
+| OTP/Email Verification | Account verification workflow for new registrations | Improves account authenticity and security |
+| Geospatial Support | Native PostgreSQL/PostGIS geography coordinates | Enables high-precision location-aware operations |
+| Agent Location Management | Database storage and display of geographic agent coordinates | Improves operational visibility for dispatchers |
+| Customer Feedback | Post-delivery customer ratings and feedback system | Enables ongoing service-quality evaluation |
+| Intelligent/Explainable Dispatch | Distance-based calculation scoring with logged rejection criteria | Provides transparent dispatch decision-making |
+| Dynamic Pricing Engine | Snapshot-based engine with Volumetric weight and B2B/B2C logic | Provides accurate, immutable pricing transparency |
+| Role-Based Dashboards | Distinct frontend workflows for Admin, Agent, and Customer | Ensures users only receive relevant operational context |
+| Tracking History | Immutable append-only ledger of status changes and actors | Enables operational traceability for delays or disputes |
+| Delivery Attempts / Failure Handling | Dedicated delivery attempt tracking and failure/retry states | Improves visibility into unsuccessful final-mile execution |
+| Operational Notifications | Event-driven status triggers for email notifications via Resend | Keeps customers informed automatically |
+
 ## Why This Architecture
 
 This platform leverages specific tools to solve core domain problems:
@@ -58,6 +75,21 @@ graph TD
   
   DB --> Geocoding[External: Nominatim Geocoding]
 ```
+
+### Production Deployment Architecture
+
+Browser
+↓
+Vercel frontend
+↓
+Render backend API
+↓
+Supabase PostgreSQL/PostGIS
+
+Supporting services:
+- Resend
+- Nominatim
+
 
 ## User Roles & RBAC
 
@@ -206,7 +238,14 @@ When running `npm run test` in the `backend/` directory:
 2. It enforces safety guards ensuring the test DB string explicitly contains "test" to prevent catastrophic user error.
 3. Tests aggressively wipe data, invoke the dispatch engine, and assert on spatial outcomes.
 
-**Status:** The current test suite focuses heavily on Admin Dispatch, Pricing constraints, and RBAC enforcement.
+**Status:** The historical development and validation testing focused heavily on Admin Dispatch, Pricing constraints, and RBAC enforcement.
+
+### Database Migration History
+
+The database architecture followed this migration journey:
+Local PostgreSQL/PostGIS → development → extensive validation → database cleanup → production migration → Supabase PostgreSQL → production validation.
+
+Production credentials are never documented or committed to the repository.
 
 ## Production Deployment
 
@@ -271,26 +310,36 @@ Production secret values must be configured through Render and Vercel Environmen
 Every push to `main` and every Pull Request targeting `main` runs automated validation through GitHub Actions.
 
 Checks include:
-- Backend dependency installation
-- Prisma Client generation
-- Backend TypeScript/build
-- Backend automated regression test
-- Frontend dependency installation
-- Frontend linting
-- Frontend TypeScript validation
-- Frontend production build
+- Backend dependency installation (`npm ci`)
+- Prisma Client generation (`npx prisma generate`)
+- Backend TypeScript/build (`npx tsc -b`)
+- Backend automated regression test (`npm run test`)
+- Frontend dependency installation (`npm ci`)
+- Frontend TypeScript validation (`npx tsc --noEmit`)
+- Frontend production build (`npm run build`)
 
 The CI pipeline uses an isolated test environment and does not modify the production Supabase database.
 
 ## Testing
 
-The system underwent extensive validation during development, with 100+ test scenarios/checks executed across core application workflows and edge cases before the final production database cleanup and migration.
+### Historical Development & Validation
 
-These historical validation scenarios are documented as development/testing history and are not represented as the current automated regression-test count.
+The system underwent extensive validation during development, with 100+ historical development/validation scenarios executed across core application workflows and edge cases before the final production database cleanup and migration. These were development/validation checks, NOT 100+ automated tests.
 
-The current repository maintains one representative automated regression test, which is executed locally and through GitHub Actions CI.
+Functional testing covered authentication/login, API behavior, database behavior, order workflows, pricing, dispatch, agent assignment, tracking/status transitions, edge cases, and concurrency/reliability validation.
 
-Production functionality was also manually validated after deployment.
+### Current Automated Regression Test
+
+Exactly ONE representative automated regression test currently runs: `backend/src/__tests__/pricing.regression.test.ts`.
+
+It strictly tests the deterministic business logic of the `PricingService.calculate` module (volumetric calculation, B2B/B2C logic, Zone logic, and Surcharges) from the source code.
+
+### Production Validation
+
+The deployed production system was manually verified after deployment. Validation included frontend deployment, backend deployment, production database connection, login/authentication, existing production data, dashboard/operational workflows, agent locations, and API communication.
+
+#### Agent Location Issue Resolution
+Following production deployment, agent latitude/longitude initially appeared as "Unknown" in the UI. Investigation showed `NULL` coordinates in the affected production records. Only the required latitude/longitude values were restored, without modifying unrelated production data. The location display was subsequently validated.
 
 
 ## Production Email / Account Registration Limitation
