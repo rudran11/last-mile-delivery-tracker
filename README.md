@@ -1,82 +1,226 @@
-# Last-Mile Delivery Tracker
+# Last Mile Delivery Tracker
 
-A comprehensive delivery management platform focusing on top-tier engineering principles. Includes dynamic pricing, PostGIS geospatial assignment, database-level immutability, and deterministic routing.
+An intelligent last-mile logistics platform for order management, dynamic pricing, spatial dispatch, delivery tracking, and fleet operations.
 
-## Features
-- **Role-based Access:** Customer, Delivery Agent, Admin
-- **Dynamic Pricing Engine:** Volumetric calculation, Zone pricing, COD surcharge.
-- **Geospatial Assignment:** Hybrid zone-sharded, PostGIS nearest-neighbor agent ranking.
-- **Order Lifecycle:** Status tracking with database-engine protected immutable history.
-- **Clean Architecture:** Production-grade PostgreSQL schema with check constraints and triggers.
+## Overview
 
-## Tech Stack
-- **Database:** PostgreSQL + PostGIS, Prisma ORM
-- **Backend:** Node.js, TypeScript
-- **Frontend:** React, Vite (Upcoming)
+The Last Mile Delivery Tracker is designed to solve complex operational challenges in modern logistics. Rather than just tracking a package, this system coordinates dynamic B2B and B2C pricing rules, geographically-aware agent assignment using PostGIS, and high-fidelity operational transparency for three distinct user roles.
 
----
+- **Admin (Operations Center):** Manages the fleet, configures geographic zones and rate cards, monitors real-time dispatch, and oversees order lifecycles.
+- **Customer:** Receives instant, accurate quotes based on spatial constraints (Intra/Inter-zone), creates orders, and tracks real-time progress.
+- **Agent (Fleet):** Operates the delivery queue, processes delivery attempts, and updates lifecycle statuses dynamically.
 
-# Running the Project From a Clean Machine
+## Key Capabilities
 
-This project relies on **PostgreSQL with the PostGIS extension** to perform real-world distance calculations. We use Docker to guarantee a reproducible environment.
+| Capability | Status | Description |
+|---|---|---|
+| Customer Authentication | Implemented | Secure JWT-based authentication & registration. |
+| Order Management | Implemented | E2E lifecycle: Pending → Assigned → Transit → Delivered. |
+| Dynamic Pricing | Implemented | B2B/B2C, volumetric vs actual weight, zone relationship mapping. |
+| COD Surcharges | Implemented | Automated Cash on Delivery surcharge application. |
+| Intelligent Dispatch | Implemented | Automated distance-based agent candidate scoring. |
+| Geospatial DB Integration | Implemented | Powered by PostgreSQL/PostGIS (`ST_Distance`, `ST_MakePoint`). |
+| Delivery Tracking | Implemented | Immutable event-driven historical ledger for each order. |
+| Fleet Management | Implemented | Fleet tracking, zone assignment, availability toggling. |
+| Customer Feedback | Implemented | Delivery performance ratings and reviews. |
+| Agent Performance | Implemented | Fleet KPI tracking based on delivery success and feedback. |
+| Explainable Dispatch | Implemented | Real-time breakdown of why an agent was/wasn't selected. |
+
+## Why This Architecture
+
+This platform leverages specific tools to solve core domain problems:
+
+- **PostGIS (`ST_Distance`):** Real-world dispatch requires knowing spatial proximity. Rather than pulling all agents into Node.js to calculate distance, PostGIS computes spatial proximity natively at the database layer, filtering candidates before they hit the application layer.
+- **Prisma Transactions:** Delivery assignments and status overrides require strict concurrency protection to prevent double-dispatching an agent.
+- **PricingSnapshot Pattern:** The pricing engine enforces immutability. An order placed today must retain today's rate configuration, even if rate cards change tomorrow. PricingSnapshots permanently record the mathematical breakdown at the time of creation.
+- **Zod + TypeScript:** Enforces rigorous contract boundaries, preventing invalid payload states (like negative weights or unknown coordinates) from reaching the database.
+- **Test Database Isolation:** Using a dedicated `DATABASE_URL_TEST` ensures that the integration tests (which aggressively wipe and seed states) never corrupt the development or staging databases.
+
+## System Architecture
+
+```mermaid
+graph TD
+  Browser[Web Browser - React SPA] -->|HTTPS / REST| API[Express API Gateway]
+  API --> Middleware[Auth & RBAC Middleware]
+  Middleware --> Controller[Controllers]
+  Controller --> Service[Domain Services]
+  
+  Service --> Auth[Auth Service]
+  Service --> Order[Order Service]
+  Service --> Dispatch[Dispatch Service]
+  Service --> Pricing[Pricing Service]
+  
+  Order --> Pricing
+  Order --> Dispatch
+  
+  Service --> Prisma[Prisma ORM]
+  Prisma --> DB[(PostgreSQL + PostGIS)]
+  
+  DB --> Geocoding[External: Nominatim Geocoding]
+```
+
+## User Roles & RBAC
+
+The system employs strict backend Route Protection & RBAC checking, ensuring roles cannot cross trust boundaries.
+
+| Capability | Admin | Customer | Agent |
+|---|:---:|:---:|:---:|
+| System Configuration (Rates/Zones) | ✓ | - | - |
+| Fleet & Agent Management | ✓ | - | - |
+| Force Dispatch / Reassign | ✓ | - | - |
+| View System Logs / Explanation | ✓ | - | - |
+| Create Orders | ✓ | ✓ | - |
+| Track Owned Orders | - | ✓ | - |
+| Submit Feedback | - | ✓ | - |
+| Update Order Status | - | - | ✓ |
+| Toggle Availability | - | - | ✓ |
+
+## Order Lifecycle
+
+The system utilizes a strictly defined state machine for order lifecycles.
+
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING: Order Created
+    PENDING --> ASSIGNED: Agent Dispatched
+    ASSIGNED --> PICKED_UP: Agent Arrives
+    PICKED_UP --> IN_TRANSIT: Package Moving
+    IN_TRANSIT --> OUT_FOR_DELIVERY: Final Mile
+    OUT_FOR_DELIVERY --> DELIVERED: Success
+    OUT_FOR_DELIVERY --> FAILED: Attempt Failed
+    
+    FAILED --> ASSIGNED: Auto-Rescheduled
+```
+
+- **Transitions:** Transitions are strictly validated (e.g. an Agent cannot transition an order from `PENDING` to `DELIVERED`).
+- **Tracking Ledger:** Every state change emits a `TrackingHistory` event with the actor, timestamp, and metadata.
+
+## Pricing Engine
+
+The pricing engine dynamically calculates charges based on logistics rules:
+1. **Volumetric vs Actual Weight:** Calculates `(L * B * H) / 5000` and charges based on whichever is higher (`billableWeight`).
+2. **Zone Relationship:** Computes if the route is Intra-zone (same zone) or Inter-zone (cross zone).
+3. **Customer Class:** Diverges logic for B2B vs B2C rate cards.
+4. **Surcharges:** Automatically attaches fixed COD surcharges if the payment type requires it.
+
+**PricingSnapshot:** Upon order creation, all of the variables above (including the raw calculation breakdown) are serialized into a read-only `PricingSnapshot` record, completely decoupling the historical order from future rate configurations.
+
+## Intelligent Dispatch
+
+The dispatch engine operates on a multi-stage funnel:
+
+1. **Candidate Retrieval:** Queries `AgentProfile` for active agents with valid geospatial coordinates.
+2. **Eligibility Filtering:** Filters out agents who are currently `isAvailable = false` or already handling an active assignment.
+3. **Spatial Calculation:** Uses PostGIS `ST_Distance` to compute the direct meter distance between the Order's pickup coordinates and the Agent's last known coordinates.
+4. **Ranking:** Sorts eligible agents by absolute nearest proximity.
+5. **Atomic Assignment:** Locks the agent and generates a `DeliveryAttempt` record within a Prisma transaction to prevent race conditions.
+
+## Geocoding
+
+The system utilizes **Nominatim (OpenStreetMap)** to dynamically convert human-readable addresses or fallback inputs into high-precision Latitude/Longitude coordinates. 
+These coordinates are then cast into PostGIS Geography points `Unsupported("geography(Point, 4326)")` for use in spatial distance equations.
+
+## Tracking & Delivery History
+
+Instead of mutating a single string, the system generates an append-only ledger (`TrackingHistory`). This provides operational transparency, allowing Customers and Admins to see exactly who performed an action (and when), ensuring accountability for failed deliveries or delays.
+
+## Technology Stack
+
+| Layer | Technology | Purpose |
+|---|---|---|
+| **Frontend** | React 19 + TypeScript | Component-based UI architecture. |
+| **Styling** | Vanilla CSS Modules | Scoped, zero-dependency high-performance styling. |
+| **State/Routing** | React Router + Zustand | Client-side routing and minimal global state. |
+| **Backend** | Node.js + Express 5 | High-throughput REST API. |
+| **Database** | PostgreSQL 16 | Relational data integrity & ACID transactions. |
+| **Geospatial** | PostGIS | Native distance and geography computations. |
+| **ORM** | Prisma 5.19 | Type-safe database interactions and transactions. |
+| **Validation** | Zod | Runtime payload contract enforcement. |
+| **Auth** | JWT | Stateless, secure role-based session management. |
+| **Testing** | Jest + Supertest | Integration and E2E lifecycle testing. |
+
+## Project Structure
+
+```text
+last-mile-delivery-tracker/
+├── backend/
+│   ├── prisma/             # Schema, migrations, and seed logic
+│   ├── src/
+│   │   ├── __tests__/      # Integration, RBAC, and dispatch tests
+│   │   ├── config/         # Environment and setup
+│   │   ├── controllers/    # Express route controllers
+│   │   ├── middlewares/    # JWT Auth & Role guards
+│   │   ├── routes/         # Express API definitions
+│   │   ├── services/       # Core domain logic (Pricing, Dispatch, etc)
+│   │   └── validators/     # Zod schemas
+│   └── package.json
+├── frontend/
+│   ├── src/
+│   │   ├── components/     # Shared UI primitives (Buttons, Cards, Layouts)
+│   │   ├── features/       # Role-based pages (Admin, Customer, Agent)
+│   │   ├── services/       # API client config
+│   │   └── App.tsx         # Route registry
+│   └── package.json
+└── docs/                   # Extended Architecture and API documentation
+```
+
+## Local Development Setup
 
 ### Prerequisites
-- [Docker & Docker Compose](https://docs.docker.com/get-docker/) installed and running.
-- [Node.js](https://nodejs.org/) (v18+)
+- Node.js (v18+)
+- PostgreSQL (with PostGIS extension installed and running). Recommended to use Docker for this.
 
-### Setup Instructions
+### 1. Database Setup
+Ensure you have a PostgreSQL instance with PostGIS available. (If using Docker, a standard `postgis/postgis` image works perfectly).
 
-Open your terminal and run the following exact commands in sequence:
-
-**1. Clone the repository**
-```bash
-git clone https://github.com/rudran11/last-mile-delivery-tracker.git
-cd "last-mile-delivery-tracker"
-```
-
-**2. Start the PostGIS Database**
-```bash
-docker compose up -d
-```
-*(Wait 5-10 seconds for the database to fully initialize).*
-
-**3. Configure Environment**
-Copy the example environment file:
+### 2. Backend Setup
 ```bash
 cd backend
-cp .env.example .env
-```
-*(Note: `.env.example` is preconfigured to match the Docker setup).*
-
-**4. Install Dependencies**
-```bash
 npm install
-```
+cp .env.example .env
+# Edit .env with your local PostgreSQL credentials
 
-**5. Apply Database Migrations**
-This will push the schema, apply PostGIS extensions, and create constraints:
-```bash
-npx prisma migrate dev
-```
+# Push schema to database
+npx prisma db push
 
-**6. Seed the Database**
-Populates the database with realistic agents, zones, and geographic locations:
-```bash
+# (Optional) Seed the database with mock operational data
 npx prisma db seed
+
+# Start the development server
+npm run dev
 ```
 
-**7. Run Automated Tests**
-Verifies constraint enforcement, PostGIS query plans, and triggers:
+### 3. Frontend Setup
 ```bash
-npm run test
+cd frontend
+npm install
+# Start the Vite development server
+npm run dev
 ```
 
-### Shutdown/Reset
+## Test Database & Architecture
 
-To stop the database and erase all volumes (clean slate):
-```bash
-docker compose down -v
-```
+The testing suite relies on a **completely isolated test database** to prevent destructive operations on your development data.
+When running `npm run test` in the `backend/` directory:
+1. The test runner strictly demands a `DATABASE_URL_TEST` environment variable.
+2. It enforces safety guards ensuring the test DB string explicitly contains "test" to prevent catastrophic user error.
+3. Tests aggressively wipe data, invoke the dispatch engine, and assert on spatial outcomes.
 
-### Troubleshooting
-- **Migration fails with "extension postgis is not available"**: Ensure you started the database using `docker compose up -d` from step 2, rather than using a local Postgres installation. The project strictly requires the PostGIS image provided in the compose file.
+**Status:** The current test suite focuses heavily on Admin Dispatch, Pricing constraints, and RBAC enforcement.
+
+## Documentation References
+
+- [API Documentation](docs/API.md)
+- [Architecture Details](docs/ARCHITECTURE.md)
+- [Requirements Compliance Matrix](docs/REQUIREMENTS.md)
+- [Demo Workflow & Screenshots](docs/SCREENSHOTS.md)
+
+## Known Limitations & Future Enhancements
+
+**Current Limitations:**
+- Geocoding relies on a public, rate-limited Nominatim endpoint; in a heavy production scenario, this requires a commercial API key (e.g., Google Maps/Mapbox).
+- Real-time agent location streams via WebSockets are not currently active; agent locations are updated via standard REST payloads.
+
+**Future Enhancements:**
+- Integration of a dedicated Redis instance for real-time location pub/sub.
+- Advanced routing optimizations (Traveling Salesperson Problem algorithms) for assigning multiple queued orders to a single agent.
