@@ -1,0 +1,218 @@
+.pageWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: 0 0 var(--space-8) 0;
+}
+
+.kpiStrip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.kpiCard {
+  background-color: #172235;
+  border: 1px solid #29374A;
+  border-radius: 12px;
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.kpiLabel {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: #718096;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.kpiValue {
+  font-size: 36px;
+  color: #F8FAFC;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.attentionSection {
+  display: flex;
+  align-items: center;
+  background-color: rgba(52, 211, 153, 0.05);
+  border: 1px solid rgba(52, 211, 153, 0.2);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+  gap: var(--space-3);
+}
+.attentionSection.hasAttention {
+  background-color: rgba(245, 158, 11, 0.05);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+.attentionIcon {
+  color: #34D399;
+}
+.hasAttention .attentionIcon {
+  color: #F59E0B;
+}
+
+.attentionTitle {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-right: var(--space-4);
+  text-transform: uppercase;
+}
+.attentionMessage {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.workspaceGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+}
+
+@media (min-width: 1024px) {
+  .workspaceGrid {
+    grid-template-columns: 3fr 1fr;
+  }
+}
+
+.mapWorkspace {
+  background-color: #0F172A;
+  border: 1px solid #29374A;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mapHeader {
+  background-color: #172235;
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #29374A;
+}
+
+.mapTitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: #F8FAFC;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.liveDot {
+  width: 6px;
+  height: 6px;
+  background-color: #34D399;
+  border-radius: 50%;
+}
+
+.mapStats {
+  font-size: 12px;
+  color: #A8B4C7;
+  display: flex;
+  gap: var(--space-4);
+}
+
+.mapStats span {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.mapStats b {
+  color: #F8FAFC;
+  font-weight: 600;
+}
+
+.mapContainer {
+  height: 500px;
+  width: 100%;
+}
+
+.fleetPanel {
+  background-color: #172235;
+  border: 1px solid #29374A;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.fleetHeader {
+  padding: var(--space-3) var(--space-4);
+  font-size: 12px;
+  font-weight: 700;
+  color: #F8FAFC;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #29374A;
+  text-transform: uppercase;
+}
+
+.fleetList {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 500px;
+}
+
+.fleetRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid #29374A;
+}
+.fleetRow:last-child {
+  border-bottom: none;
+}
+
+.fleetAgent {
+  display: flex;
+  flex-direction: column;
+}
+.fleetName {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: #F8FAFC;
+}
+.fleetZone {
+  font-size: 11px;
+  color: #A8B4C7;
+}
+
+.fleetStatus {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.activitySection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.activityHeader {
+  font-size: 12px;
+  font-weight: 700;
+  color: #F8FAFC;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Specific Badge overrides for dense view if needed */
+.statusBadge {
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+}

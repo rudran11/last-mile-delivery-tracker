@@ -1,28 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
-import { Map, Layers, ClipboardList, BarChart, MessageSquare, Box, PlusCircle, Settings, CreditCard , Users} from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
+import { PageHeader } from '../../components/layout/PageHeader';
 import { api } from '../../services/ApiClient';
 import { LiveMap } from '../../components/domain/LiveMap';
-
-const navItems = [
-  { label: 'Control Tower', href: '/admin', icon: <BarChart size={20} /> },
-  { label: 'Fleet / Agents', href: '/admin/agents', icon: <Users size={20} /> },
-  { label: 'Communications', href: '/admin/notifications', icon: <MessageSquare size={20} /> },
-  { label: 'Dispatch Panel', href: '/admin/dispatch', icon: <Map size={20} /> },
-  { label: 'Order Ledger', href: '/admin/orders', icon: <Box size={20} /> },
-  { label: 'Create Order', href: '/admin/orders/create', icon: <PlusCircle size={20} /> },
-  { label: 'Geographic Zones', href: '/admin/configuration/zones', icon: <Settings size={20} /> },
-  { label: 'Rate Cards', href: '/admin/configuration/rates', icon: <CreditCard size={20} /> },
-];
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table';
+import { Badge } from '../../components/ui/Badge';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import styles from './ControlTowerPage.module.css';
 
 const ControlTowerPage = () => {
+  const [orders, setOrders] = useState<any[]>([]);
+  const [agents, setAgents] = useState<any[]>([]);
   const [stats, setStats] = useState({
     active: 0,
     pending: 0,
-    delivered: 0
+    delivered: 0,
+    availableAgents: 0
   });
-  const [agents, setAgents] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -32,75 +26,180 @@ const ControlTowerPage = () => {
           api.get<any[]>('/agents')
         ]);
         
-        let active = 0, pending = 0, delivered = 0;
-        ordersData.forEach(order => {
+        let active = 0, pending = 0, delivered = 0, availableAgents = 0;
+        
+        const ordersList = Array.isArray(ordersData) ? ordersData : [];
+        ordersList.forEach(order => {
           if (order.status === 'PENDING') pending++;
           else if (order.status === 'DELIVERED') delivered++;
-          else active++;
+          else if (order.status !== 'FAILED') active++;
+        });
+
+        const agentsList = Array.isArray(agentsRes) ? agentsRes : [];
+        agentsList.forEach(agent => {
+          if (agent.status === 'AVAILABLE') availableAgents++;
         });
         
-        setStats({ active, pending, delivered });
-        setAgents(agentsRes);
+        setOrders(ordersList.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()));
+        setAgents(agentsList);
+        setStats({ active, pending, delivered, availableAgents });
       } catch (err) {
         console.error('Failed to load KPIs', err);
       }
     };
     
     fetchData();
+    const interval = setInterval(fetchData, 10000);
+    return () => clearInterval(interval);
   }, []);
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'DELIVERED': return <Badge variant="success" className={styles.statusBadge}>DELIVERED</Badge>;
+      case 'FAILED': return <Badge variant="error" className={styles.statusBadge}>FAILED</Badge>;
+      case 'PENDING': return <Badge variant="warning" className={styles.statusBadge}>PENDING</Badge>;
+      case 'IN_TRANSIT': return <Badge variant="outline" style={{ borderColor: 'var(--color-warning)', color: 'var(--color-warning)' }} className={styles.statusBadge}>IN TRANSIT</Badge>;
+      default: return <Badge variant="default" className={styles.statusBadge}>{status}</Badge>;
+    }
+  };
+
+  const getAgentStatusBadge = (status: string) => {
+    switch (status) {
+      case 'AVAILABLE': return <span style={{ color: '#34D399' }}>Available</span>;
+      case 'IN_TRANSIT': return <span style={{ color: '#F59E0B' }}>Transit</span>;
+      case 'ACTIVE': return <span style={{ color: '#635BFF' }}>Active</span>;
+      default: return <span style={{ color: '#F87171' }}>Offline</span>;
+    }
+  };
+
+  const hasAttention = stats.pending > 0;
+
   return (
-    <DashboardLayout navItems={navItems}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-        <header>
-          <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>
-            Control Tower
-          </h1>
-          <p style={{ color: 'var(--color-text-secondary)' }}>
-            Logistics engine overview and geospatial intelligence.
-          </p>
-        </header>
+    <DashboardLayout navItems={[]}>
+      <div className={styles.pageWrapper}>
+        <PageHeader 
+          title="Control Tower"
+          description="Real-time visibility across deliveries, fleet and operations."
+          secondaryActions={
+            <div className={styles.mapTitle}>
+              <span className={styles.liveDot}></span> Live operations
+            </div>
+          }
+        />
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
-          <Card>
-            <CardHeader>
-              <CardTitle>Pending Assignments</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p style={{ fontSize: 'var(--text-3xl)', fontWeight: 700 }}>{stats.pending}</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Active / In-Transit</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p style={{ fontSize: 'var(--text-3xl)', fontWeight: 700 }}>{stats.active}</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Delivered Today</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p style={{ fontSize: 'var(--text-3xl)', fontWeight: 700 }}>{stats.delivered}</p>
-            </CardContent>
-          </Card>
+        {/* KPI Strip */}
+        <div className={styles.kpiStrip}>
+          <div className={styles.kpiCard}>
+            <span className={styles.kpiLabel}>Pending Assignments</span>
+            <span className={styles.kpiValue}>{stats.pending.toString().padStart(2, '0')}</span>
+          </div>
+          <div className={styles.kpiCard}>
+            <span className={styles.kpiLabel}>Active / In-Transit</span>
+            <span className={styles.kpiValue}>{stats.active.toString().padStart(2, '0')}</span>
+          </div>
+          <div className={styles.kpiCard}>
+            <span className={styles.kpiLabel}>Available Agents</span>
+            <span className={styles.kpiValue}>{stats.availableAgents.toString().padStart(2, '0')}</span>
+          </div>
+          <div className={styles.kpiCard}>
+            <span className={styles.kpiLabel}>Delivered Today</span>
+            <span className={styles.kpiValue}>{stats.delivered.toString().padStart(2, '0')}</span>
+          </div>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Live Operations Map</CardTitle>
-            <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)' }}>
-              Geospatial view of active agents.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <LiveMap agents={agents} orders={[]} />
-          </CardContent>
-        </Card>
+        {/* Operational Attention */}
+        <div className={`${styles.attentionSection} ${hasAttention ? styles.hasAttention : ''}`}>
+          {hasAttention ? <AlertCircle size={20} className={styles.attentionIcon} /> : <CheckCircle2 size={20} className={styles.attentionIcon} />}
+          <div>
+            <span className={styles.attentionTitle}>
+              {hasAttention ? 'OPERATIONAL ATTENTION' : 'ALL OPERATIONS NOMINAL'}
+            </span>
+            <span className={styles.attentionMessage}>
+              {hasAttention 
+                ? `${stats.pending} deliveries are awaiting assignment.` 
+                : 'No delivery exceptions require attention right now.'}
+            </span>
+          </div>
+        </div>
+
+        {/* Workspace Grid */}
+        <div className={styles.workspaceGrid}>
+          {/* Map */}
+          <div className={styles.mapWorkspace}>
+            <div className={styles.mapHeader}>
+              <div className={styles.mapTitle}>
+                LIVE OPERATIONS
+              </div>
+              <div className={styles.mapStats}>
+                <span><b>{agents.length}</b> Agents</span>
+                <span><b>{stats.active}</b> Active</span>
+                <span><b>{stats.availableAgents}</b> Available</span>
+              </div>
+            </div>
+            <div className={styles.mapContainer}>
+              <LiveMap agents={agents} orders={orders.filter(o => o.status !== 'DELIVERED')} />
+            </div>
+          </div>
+
+          {/* Fleet Panel */}
+          <div className={styles.fleetPanel}>
+            <div className={styles.fleetHeader}>ACTIVE FLEET</div>
+            <div className={styles.fleetList}>
+              {agents.map(agent => (
+                <div key={agent.id} className={styles.fleetRow}>
+                  <div className={styles.fleetAgent}>
+                    <span className={styles.fleetName}>{agent.name}</span>
+                    <span className={styles.fleetZone}>{agent.zoneId ? `Zone: ${agent.zoneId.split('-')[0]}` : 'Unassigned'}</span>
+                  </div>
+                  <div className={styles.fleetStatus}>
+                    {getAgentStatusBadge(agent.status)}
+                  </div>
+                </div>
+              ))}
+              {agents.length === 0 && (
+                <div style={{ padding: '2rem', textAlign: 'center', color: '#718096', fontSize: '12px' }}>NO AGENTS FOUND</div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Activity Table */}
+        <div className={styles.activitySection}>
+          <div className={styles.activityHeader}>RECENT DELIVERY ACTIVITY</div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Order ID</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Agent</TableHead>
+                <TableHead>Updated</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {orders.slice(0, 5).map(order => (
+                <TableRow key={order.id}>
+                  <TableCell style={{ fontFamily: 'monospace', fontSize: '13px' }}>
+                    {order.id.split('-')[0]}
+                  </TableCell>
+                  <TableCell>
+                    {getStatusBadge(order.status)}
+                  </TableCell>
+                  <TableCell>
+                    {order.agentId ? agents.find(a => a.id === order.agentId)?.name || order.agentId.split('-')[0] : <span style={{ color: '#718096' }}>Unassigned</span>}
+                  </TableCell>
+                  <TableCell style={{ color: '#A8B4C7', fontSize: '13px' }}>
+                    {new Date(order.updatedAt || order.createdAt).toLocaleTimeString()}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {orders.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} style={{ textAlign: 'center', color: '#718096' }}>No active orders.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </DashboardLayout>
   );

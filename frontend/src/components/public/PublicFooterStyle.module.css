@@ -1,5 +1,5 @@
 .footer {
-  background-color: var(--color-surface);
+  background-color: var(--color-bg);
   border-top: 1px solid var(--color-border);
   padding-top: var(--space-16);
   display: flex;
@@ -14,6 +14,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-12);
+  box-sizing: border-box;
 }
 
 .brandSection {
@@ -86,7 +87,7 @@
 }
 
 .bottomBar {
-  border-top: 1px solid var(--color-border-subtle);
+  border-top: 1px solid var(--color-border);
   background-color: var(--color-bg);
   padding: var(--space-6) 0;
 }

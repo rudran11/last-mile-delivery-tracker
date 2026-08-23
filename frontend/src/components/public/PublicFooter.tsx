@@ -1,6 +1,7 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Package } from 'lucide-react';
-import styles from './PublicFooter.module.css';
+import styles from './PublicFooterStyle.module.css';
 
 export const PublicFooter = () => {
   return (
